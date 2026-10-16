@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Motion</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>
+main.page{max-width:1100px}
+.intro{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}
+.intro .card{margin:0}.intro b{display:block;margin-bottom:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:10px}
+.mc{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.mc .th{aspect-ratio:9/16;background:var(--surface);position:relative;display:grid;place-items:center;color:var(--faint);font-size:12px}
+.mc .th video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.mc .bd{padding:10px 12px;display:grid;gap:8px}.mc .nm{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<div class="row" style="align-items:center;gap:12px;margin:18px 2px 4px"><h2 style="font-size:22px;font-weight:700">Motion</h2><span class="badge">Complex, animated videos</span></div>
+<div class="intro">
+  <div class="card"><b>Key words and text scenes</b><span class="badge">Animated words over the speaker and full-screen text on moving backgrounds.</span></div>
+  <div class="card"><b>Phones and monitors</b><span class="badge">Your screenshots and screen recordings in a device frame.</span></div>
+  <div class="card"><b>Transitions and effects</b><span class="badge">Flashes, particles, morphing shapes, hand-drawn underlines.</span></div>
+</div>
+<div class="row" style="align-items:center;gap:10px"><h3 style="margin:0">Creatives with a speaker video</h3><select id="flt" onchange="draw()" style="max-width:220px"><option value="all">All</option><option value="done">Motion version made</option><option value="todo">Not made yet</option></select></div>
+<div class="badge">A normal (light) video is made in Creatives. The motion version is a separate, richer video that takes a few minutes to render.</div>
+<div id="grid" class="grid"></div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let L = [], TM = null;
+async function load() {
+  clearTimeout(TM);
+  L = (await (await fetch('/api/projects')).json()).filter(p => p.presenter);
+  draw();
+  if (L.some(p => p.typo && ['queued', 'rendering'].includes(p.typo.status))) TM = setTimeout(load, 4000);
+}
+function draw() {
+  const f = $('#flt').value;
+  const rows = L.filter(p => f === 'all' || (f === 'done') === !!(p.typo && p.typo.file));
+  $('#grid').innerHTML = rows.map(p => {
+    const t = p.typo, run = t && ['queued', 'rendering'].includes(t.status);
+    return `<div class="mc"><div class="th">${t && t.file && !run ? `<video src="/files/${p.id}/${t.file}?v=${t.rendered || 0}" controls preload="metadata" playsinline></video>` : run ? 'Making the video…' : 'No motion version yet'}</div>
+      <div class="bd"><div class="nm" title="${esc(p.name)}">${p.creativeNo ? p.creativeNo + '. ' : ''}${esc(p.name)}</div>
+        ${run ? `<div class="bar"><i style="width:${Math.round((t.progress || 0) * 100)}%"></i></div><span class="badge">${t.status === 'queued' ? 'In the queue' : Math.round((t.progress || 0) * 100) + '%'}</span>`
+          : t && t.status === 'error' ? '<span class="pill bad">Stopped</span>' : t && t.file ? '<span class="pill ok">Ready</span>' : p.analyzed ? '<span class="pill">Ready to make</span>' : '<span class="pill warn">Analyze it first</span>'}
+        <div style="display:flex;gap:6px"><a class="btn sm" style="flex:1" href="/typo.html?id=${p.id}">${t && t.file ? 'Edit' : 'Make'}</a>${t && t.file && !run ? `<a class="btn sec sm" href="/files/${p.id}/${t.file}?v=${t.rendered || 0}" download>Download</a>` : ''}</div></div></div>`;
+  }).join('') || '<div class="empty" style="grid-column:1/-1"><b>No creatives with a speaker video</b>Add the video of the speaker to a creative, and it will show up here.</div>';
+}
+load();
+</script></body></html>

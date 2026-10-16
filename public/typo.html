@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Typographic video</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>
+main.page{max-width:1100px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+.sw{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw button{width:30px;height:30px;min-height:30px;padding:0;border-radius:50%;border:2px solid var(--line2)}
+.sw button.on{outline:2px solid var(--tx);outline-offset:2px}
+.shots{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.shot{position:relative;width:84px;height:150px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--surface)}
+.shot img,.shot video{width:100%;height:100%;object-fit:cover}.shot button{position:absolute;right:3px;top:3px;min-height:22px;padding:0 7px;font-size:12px}
+.pl{display:grid;grid-template-columns:70px 70px minmax(0,1fr) auto;gap:6px;align-items:center;margin-top:6px}
+.pl input{min-height:32px;font-size:13px}
+.pv{aspect-ratio:9/16;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;place-items:center;color:var(--mut);font-size:13px;text-align:center;padding:12px}
+.pv video{width:100%;height:100%;object-fit:cover}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:10px 0}.bar i{display:block;height:100%;background:var(--ac);transition:width .4s}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<div id="top"></div>
+<div class="grid2"><div id="left"></div><div id="right"></div></div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ID = new URLSearchParams(location.search).get('id') || '';
+const j = (u, b) => fetch(u, b === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json());
+let S = null, OPT = null, TM = null, PL = null, HB = [], FLD = {}, OPEN = {};
+
+async function init() {
+  if (!ID) { $('#top').innerHTML = '<div class="empty"><b>No creative chosen</b>Open this page from a creative.</div>'; return; }
+  OPT = await j('/api/typo/options'); HB = await j('/api/hfblocks'); await load();
+}
+async function load() {
+  clearTimeout(TM); S = await j('/api/projects/' + ID + '/typo'); if (S.error) { $('#top').innerHTML = '<div class="card err">' + esc(S.error) + '</div>'; return; }
+  if (!PL || S.status === 'done' || !S.plan) PL = S.plan ? JSON.parse(JSON.stringify(S.plan)) : null;
+  draw(); if (['queued', 'rendering'].includes(S.status)) TM = setTimeout(poll, 2500);
+}
+async function poll() { const n = await j('/api/projects/' + ID + '/typo'); S.status = n.status; S.progress = n.progress; S.error = n.error; S.file = n.file; S.rendered = n.rendered;
+  if (['queued', 'rendering'].includes(n.status)) { drawRight(); TM = setTimeout(poll, 2500); } else await load(); }
+
+function draw() {
+  $('#top').innerHTML = `<div class="row" style="align-items:center;gap:12px;margin:18px 2px 4px"><h2 style="font-size:22px;font-weight:700">Typographic video</h2><span class="badge">${esc(S.name)}</span>
+    <a class="btn sec sm" style="margin-left:auto" href="/#${ID}">Back to the project</a></div>
+    ${!S.hasVideo ? '<div class="card err">This style needs the video of the speaker. Add it in the creative first.</div>' : ''}${S.hasVideo && !S.analyzed ? '<div class="card">Run the analysis of the creative first, then come back.</div>' : ''}`;
+  drawLeft(); drawRight();
+}
+function drawLeft() {
+  const o = S.opts;
+  $('#left').innerHTML = `
+  <div class="card"><h3>Look</h3>
+    <label>Accent colour</label><div class="sw">${OPT.accents.map(([c, n]) => `<button title="${n}" class="${c.toLowerCase() === o.accent.toLowerCase() ? 'on' : ''}" style="background:${c}" onclick="opt({accent:'${c}'})"></button>`).join('')}<input type="color" value="${o.accent}" onchange="opt({accent:this.value})" style="width:40px;min-height:30px;padding:0"></div>
+    <div class="row" style="gap:12px"><div><label>Font</label><select onchange="opt({font:this.value})">${OPT.fonts.map(f => `<option ${f === o.font ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select></div>
+      <div><label>Text animation</label><select onchange="opt({anim:this.value})"><option value="blur" ${o.anim !== 'gsap' ? 'selected' : ''}>Blur in</option><option value="gsap" ${o.anim === 'gsap' ? 'selected' : ''}>Letters spring in (GSAP)</option><option value="split" ${o.anim === 'split' ? 'selected' : ''}>Lines and letters rise (GSAP SplitText)</option></select></div>
+      <div><label>Text scenes</label><select onchange="opt({themes:this.value})"><option value="mix" ${o.themes === 'mix' ? 'selected' : ''}>Dark and light</option><option value="dark" ${o.themes === 'dark' ? 'selected' : ''}>Dark only</option><option value="light" ${o.themes === 'light' ? 'selected' : ''}>Light only</option></select></div></div>
+    <div class="badge" style="margin-top:6px">More fonts: put .ttf or .otf files into the folder assets/remotion/fonts.</div></div>
+  <div class="card"><h3>How much text</h3>
+    <div class="row" style="gap:12px"><div><label>Key words over the speaker</label><select onchange="opt({density:this.value})"><option value="low" ${o.density === 'low' ? 'selected' : ''}>Few</option><option value="medium" ${o.density === 'medium' ? 'selected' : ''}>Normal</option><option value="high" ${o.density === 'high' ? 'selected' : ''}>Many</option></select></div>
+      <div><label>Full-screen text scene every</label><select onchange="opt({sceneEvery:+this.value})">${[0, 2, 3, 4, 5, 6, 8].map(n => `<option value="${n}" ${+o.sceneEvery === n ? 'selected' : ''}>${n ? n + ' sentences' : 'never'}</option>`).join('')}</select></div></div>
+    <label class="chk"><input type="checkbox" ${o.keywords ? 'checked' : ''} onchange="opt({keywords:this.checked})"> Show key words over the speaker</label>
+    <label class="chk"><input type="checkbox" ${o.flashes ? 'checked' : ''} onchange="opt({flashes:this.checked})"> Flash between scenes</label>
+    <label class="chk"><input type="checkbox" ${o.underline ? 'checked' : ''} onchange="opt({underline:this.checked})"> Hand-drawn underline under the text</label>
+    <label class="chk"><input type="checkbox" ${o.morph ? 'checked' : ''} onchange="opt({morph:this.checked})"> Morphing shape behind the text scenes</label>
+    <label class="chk"><input type="checkbox" ${o.particles ? 'checked' : ''} onchange="opt({particles:this.checked})"> Floating particles in the scenes</label></div>
+  <div class="card"><h3>Screenshots and screen recordings</h3>
+    <div class="badge">Each one is shown in a phone or monitor frame and is spread over the video. Wide pictures go to the monitor.</div>
+    <label>Show them as</label><select onchange="opt({shotsAs:this.value})"><option value="device" ${o.shotsAs !== 'carousel' ? 'selected' : ''}>Phone or monitor frames</option><option value="carousel" ${o.shotsAs === 'carousel' ? 'selected' : ''}>One carousel with all of them</option></select>
+    ${o.shotsAs === 'carousel' ? `<div class="row" style="gap:12px"><div><label>Carousel</label><select onchange="opt({carousel:this.value})">${(OPT.carousels || []).map(c => `<option value="${c.id}" ${o.carousel === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div><div><label>Background</label><select onchange="opt({carouselBg:this.value})"><option value="dark" ${o.carouselBg !== 'light' ? 'selected' : ''}>Dark</option><option value="light" ${o.carouselBg === 'light' ? 'selected' : ''}>Light</option></select></div></div><div class="badge">A carousel is drawn by HyperFrames and takes about a minute more to make. Pictures are repeated to fill the carousel.</div>` : ''}
+    <input type="file" multiple accept="image/*,video/*" onchange="addShots(this.files)" style="margin-top:8px">
+    <div class="shots">${S.shots.map(f => /\.(mp4|mov|webm|m4v)$/i.test(f) ? `<div class="shot"><video src="/files/${ID}/typo/${encodeURIComponent(f)}" muted></video><button class="sec" onclick="rmShot('${esc(f)}')">✕</button></div>` : `<div class="shot"><img src="/files/${ID}/typo/${encodeURIComponent(f)}"><button class="sec" onclick="rmShot('${esc(f)}')">✕</button></div>`).join('') || '<span class="badge">None added yet</span>'}</div></div>
+  ${catalogCard()}
+  <div class="card"><div class="row" style="align-items:center"><h3 style="margin:0">Plan</h3><button class="sec" style="margin-left:auto" onclick="makePlan()" ${S.analyzed ? '' : 'disabled'}>${PL ? 'Make it again' : 'Show the plan'}</button>${PL ? '<button class="sec" onclick="savePlan()">Save edits</button>' : ''}</div>
+    <div class="badge">The plan is made from the speech. You can change any text or time, or delete a line, and then make the video.</div>
+    ${PL ? planHtml() : ''}</div>`;
+}
+// ---- catalog scenes: titles, charts, diagrams, phone chats, social cards, lower thirds
+function catalogCard() {
+  if (!HB.length) return '';
+  const cats = [...new Set(HB.map(b => b.cat))], cur = window.HBCAT || cats[0];
+  return '<div class="card"><h3>Catalog scenes</h3><div class="badge">Titles, charts, diagrams, phone chats, social cards and lower thirds. Add one, then change its texts in the plan below.</div>'
+    + '<div class="row" style="gap:10px;align-items:end"><div><label>Kind</label><select onchange="window.HBCAT=this.value;drawLeft()">' + cats.map(c => '<option' + (c === cur ? ' selected' : '') + '>' + esc(c) + '</option>').join('') + '</select></div>'
+    + '<div style="flex:2"><label>Scene</label><select id="hbsel">' + HB.filter(b => b.cat === cur).map(b => '<option value="' + b.id + '">' + esc(b.label) + '</option>').join('') + '</select></div>'
+    + '<div style="flex:0 0 90px"><label>At second</label><input id="hbat" type="number" min="0" step="0.5" value="5"></div><button onclick="addCatalog()">Add</button></div></div>';
+}
+async function addCatalog() {
+  const id = $('#hbsel').value, at = Math.max(0, +$('#hbat').value || 0); if (!id) return;
+  if (!PL) { const r = await j('/api/projects/' + ID + '/typo/plan', {}); if (r.error) { toast(r.error); return; } S = r; PL = JSON.parse(JSON.stringify(S.plan)); }
+  const f = FLD[id] || (FLD[id] = await j('/api/hfblocks/' + id));
+  PL.scenes.push({ kind: 'catalog', block: id, start: at, end: +(at + Math.min(f.dur, 6)).toFixed(2), params: {}, fit: 'contain' });
+  PL.scenes.sort((a, b) => a.start - b.start);
+  OPEN[id] = true; drawLeft();
+}
+function catalogRow(s, i) {
+  const b = HB.find(x => x.id === s.block) || { label: s.block, overlay: false }, f = FLD[s.block];
+  if (!f) { FLD[s.block] = { loading: true }; j('/api/hfblocks/' + s.block).then(r => { FLD[s.block] = r; drawLeft(); }); }
+  const inputs = f && f.fields ? f.fields.map(x => {
+    const v = s.params && s.params[x.key] != null ? s.params[x.key] : '', ph = esc(String(x.value == null ? '' : x.value));
+    const ch = 'PL.scenes[' + i + '].params=PL.scenes[' + i + '].params||{};PL.scenes[' + i + '].params[' + JSON.stringify(x.key).replace(/"/g, '&quot;') + ']=';
+    if (x.type === 'boolean') return '<label class="chk"><input type="checkbox" ' + ((v === '' ? x.value : v) ? 'checked' : '') + ' onchange="' + ch + 'this.checked">' + esc(x.label) + '</label>';
+    if (x.type === 'color') return '<div><label>' + esc(x.label) + '</label><input type="color" value="' + esc(v || x.value || '#000000') + '" onchange="' + ch + 'this.value"></div>';
+    if (x.type === 'number') return '<div><label>' + esc(x.label) + '</label><input type="number" step="any" value="' + esc(v) + '" placeholder="' + ph + '" onchange="' + ch + '+this.value"></div>';
+    return '<div style="flex:1 1 220px"><label>' + esc(x.kind === 'text' ? 'Text' : x.label) + '</label><input value="' + esc(v) + '" placeholder="' + ph + '" onchange="' + ch + 'this.value"></div>';
+  }).join('') : '<span class="badge">Loading…</span>';
+  return '<span style="grid-column:3 / span 1"><b>' + esc(b.label) + '</b> <span class="badge">' + (b.overlay ? 'over the speaker' : 'full screen') + '</span>'
+    + '<details style="margin-top:4px"' + (OPEN[s.block] ? ' open' : '') + '><summary class="badge">Change texts and settings</summary><div class="row" style="gap:8px;margin-top:6px">' + inputs
+    + '<div><label>If the shape does not fit</label><select onchange="PL.scenes[' + i + '].fit=this.value"><option value="contain"' + (s.fit !== 'cover' ? ' selected' : '') + '>Show it whole</option><option value="cover"' + (s.fit === 'cover' ? ' selected' : '') + '>Fill the frame (crop)</option></select></div></div></details></span>';
+}
+function planHtml() {
+  const kw = PL.keywords.map((k, i) => `<div class="pl"><input value="${k.start}" onchange="PL.keywords[${i}].start=+this.value"><input value="${k.end}" onchange="PL.keywords[${i}].end=+this.value"><input value="${esc(k.text)}" onchange="PL.keywords[${i}].text=this.value"><button class="sec sm" onclick="PL.keywords.splice(${i},1);drawLeft()">✕</button></div>`).join('');
+  const sc = PL.scenes.map((s, i) => `<div class="pl"><input value="${s.start}" onchange="PL.scenes[${i}].start=+this.value"><input value="${s.end}" onchange="PL.scenes[${i}].end=+this.value">
+    ${s.kind === 'catalog' ? catalogRow(s, i) : s.kind === 'carousel' ? `<span class="badge">Carousel: ${esc(((OPT.carousels || []).find(c => c.id === s.block) || {}).label || s.block)}${s.theme === 'light' ? ' (light)' : ''}</span>` : s.kind === 'device' ? `<span class="badge">${s.device === 'monitor' ? 'Monitor' : 'Phone'}: ${esc(s.fileName || '')} <input placeholder="Caption" value="${esc(s.caption || '')}" onchange="PL.scenes[${i}].caption=this.value" style="margin-left:6px;width:150px"></span>`
+      : `<span style="display:flex;gap:6px"><input value="${esc(s.lines.join(' | '))}" onchange="PL.scenes[${i}].lines=this.value.split('|').map(x=>x.trim()).filter(Boolean);PL.scenes[${i}].hl=[PL.scenes[${i}].lines.slice(-1)[0].split(' ').slice(-1)[0]]"><select onchange="PL.scenes[${i}].theme=this.value"><option value="dark" ${s.theme === 'dark' ? 'selected' : ''}>Dark</option><option value="light" ${s.theme === 'light' ? 'selected' : ''}>Light</option></select></span>`}
+    <button class="sec sm" onclick="PL.scenes.splice(${i},1);drawLeft()">✕</button></div>`).join('');
+  return `<h4 style="margin-top:14px">Full-screen scenes (${PL.scenes.length})</h4><div class="badge">from, to (seconds), text</div>${sc || '<div class="badge">None</div>'}
+    <h4 style="margin-top:14px">Key words (${PL.keywords.length})</h4>${kw || '<div class="badge">None</div>'}`;
+}
+function drawRight() {
+  const run = ['queued', 'rendering'].includes(S.status), can = S.hasVideo && S.analyzed && !run;
+  $('#right').innerHTML = `<div class="card" style="position:sticky;top:14px"><div class="pv">${S.file && !run ? `<video src="/files/${ID}/${S.file}?v=${S.rendered || 0}" controls playsinline></video>` : run ? 'Making the video…' : 'The video will appear here'}</div>
+    ${run ? `<div class="bar"><i style="width:${Math.round((S.progress || 0) * 100)}%"></i></div><div class="badge">${S.status === 'queued' ? 'In the queue' : Math.round((S.progress || 0) * 100) + '%'}</div>` : ''}
+    ${S.error ? `<div class="err" style="font-size:12px;margin-top:8px">${esc(S.error)}</div>` : ''}
+    <p style="display:flex;gap:8px;margin-top:12px"><button class="lg" style="flex:1" onclick="make()" ${can ? '' : 'disabled'}>${S.file ? 'Make it again' : 'Make the video'}</button>${S.file && !run ? `<a class="btn sec" href="/files/${ID}/${S.file}?v=${S.rendered || 0}" download>Download</a>` : ''}</p>
+    <div class="badge">It is made on this computer. A 45 second video takes about 3–5 minutes.</div></div>`;
+}
+async function opt(o) { S = await j('/api/projects/' + ID + '/typo/options', o); PL = null; draw(); }
+async function addShots(files) { if (!files.length) return; const fd = new FormData(); [...files].forEach(f => fd.append('files', f)); await fetch('/api/projects/' + ID + '/typo/shots', { method: 'POST', body: fd }); PL = null; await load(); }
+async function rmShot(name) { await j('/api/projects/' + ID + '/typo/shots/remove', { name }); PL = null; await load(); }
+async function makePlan() { S = await j('/api/projects/' + ID + '/typo/plan', {}); if (S.error) { toast(S.error); return; } PL = JSON.parse(JSON.stringify(S.plan)); draw(); }
+async function savePlan() { S = await j('/api/projects/' + ID + '/typo/plan/save', PL); if (S.error) { toast(S.error); return; } PL = JSON.parse(JSON.stringify(S.plan)); toast('Saved'); draw(); }
+async function make() {
+  if (PL) { const r = await j('/api/projects/' + ID + '/typo/plan/save', PL); if (r.error) { toast(r.error); return; } }
+  const r = await j('/api/projects/' + ID + '/typo/render', {}); if (r.error) { toast(r.error); return; } S = r; draw(); TM = setTimeout(poll, 2500);
+}
+init();
+</script></body></html>

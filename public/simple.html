@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Creatives</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>
+main.page{max-width:1040px}
+.ttl{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 2px 4px}
+.ttl h2{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.ring{--p:0;width:44px;height:44px;border-radius:50%;background:conic-gradient(var(--ok) calc(var(--p)*1%),var(--line) 0);display:grid;place-items:center;flex:none}
+.ring i{width:34px;height:34px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:12px;font-style:normal;font-weight:700}
+.cr{display:grid;grid-template-columns:168px minmax(0,1fr);gap:18px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:14px;box-shadow:var(--shadow)}
+.cr.empty-cr{border-style:dashed;box-shadow:none;background:transparent}
+.vid{position:relative;aspect-ratio:9/16;border-radius:12px;background:var(--surface);border:1px solid var(--line);overflow:hidden;display:grid;place-items:center;color:var(--faint)}
+.vid video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:0}
+.vid .ph{display:grid;gap:6px;justify-items:center;text-align:center;font-size:12px;padding:8px;color:var(--mut)}.vid .ph i{font-size:30px;font-style:normal}
+.vid .len{position:absolute;left:8px;bottom:8px;font-size:11px;font-weight:600;background:rgba(0,0,0,.6);color:#fff;padding:1px 8px;border-radius:6px;pointer-events:none}
+.hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hd input.nm{font-size:16px;font-weight:650;border-color:transparent;background:transparent;padding:4px 8px;margin-left:-8px;max-width:340px;min-height:34px}
+.hd input.nm:hover{border-color:var(--line2)}.hd input.nm:focus{background:var(--surface)}
+.cr textarea{min-height:76px;margin-top:8px}.cr textarea.small{min-height:54px}
+.src{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:6px}
+.stp2{display:flex;align-items:center;margin:12px 0 4px}
+.s2{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--faint);white-space:nowrap}
+.s2 .d{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line3);display:grid;place-items:center;font-size:11px;font-weight:700}
+.s2.ok{color:var(--ok-tx)}.s2.ok .d{background:var(--ok-bg);border-color:var(--ok);color:var(--ok-tx)}
+.s2.now{color:var(--ac-tx);font-weight:600}.s2.now .d{border-color:var(--ac);background:var(--ac-soft);animation:pulse 1.4s infinite}
+.s2.bad{color:var(--bad-tx)}.s2.bad .d{border-color:var(--danger);background:var(--bad-bg)}
+.ln2{flex:1;height:2px;background:var(--line);margin:0 10px;min-width:14px;border-radius:1px}.ln2.ok{background:var(--ok)}
+.crow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.chip2{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:999px;padding:3px 6px 3px 11px;font-size:12px;color:var(--mut);background:var(--surface)}
+.chip2 select{min-height:26px;padding:1px 22px 1px 4px;font-size:12px;width:auto;border:0;background-color:transparent;color:var(--tx)}
+.chip2 button.sm{min-height:24px;padding:1px 9px;font-size:12px;border-radius:999px}
+.dock{position:sticky;bottom:14px;z-index:20;display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--line2);border-radius:var(--r);padding:12px 16px;margin-top:18px;box-shadow:0 10px 36px rgba(0,0,0,.28)}
+.meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden;width:120px}.meter i{display:block;height:100%;background:var(--ac)}
+.muted{color:var(--mut)}.err{color:var(--bad-tx)}
+.skl{background:linear-gradient(90deg,var(--raise) 0,var(--raise2) 50%,var(--raise) 100%);background-size:200% 100%;animation:shine 1.3s infinite linear;border-radius:12px}
+@keyframes shine{to{background-position:-200% 0}}
+@media (max-width:760px){.cr{grid-template-columns:1fr}.vid{max-width:200px}.src{grid-template-columns:1fr}.dock{flex-wrap:wrap}}
+</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<div class="row" style="align-items:center;gap:10px"><label style="margin:0">Task</label><select id="tsel" onchange="pickTask(this.value)" style="max-width:340px"></select><button class="sec" onclick="newTask()">New task</button></div>
+<div id="board"><div class="skl" style="height:180px;margin-top:18px"></div></div>
+<dialog id="dlg" style="max-width:640px"></dialog>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const j = (u, b) => fetch(u, b === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json());
+let TRN = { list: [], mix: [] }, REFS = [], HFC = [], TASKS = [], TID = localStorage.getItem('simpleTask') || '', B = null, STY = [], NICHES = [], TM = null, SUG = {}, UP = {};
+const LIFE = { work: ['In work', ''], review: ['On review', 'ac'], changes: ['Edits', 'warn'], approved: ['Approved', 'ok'] };
+const BUSY = ['analyzing', 'rendering', 'queued', 'assembling'];
+
+async function init() {
+  localStorage.setItem('uiMode', 'simple');
+  [TASKS, STY, NICHES, HFC] = await Promise.all([j('/api/tasks'), j('/api/styles'), j('/api/niches'), j('/api/hfcaps')]);
+  try { REFS = (await j('/api/references')).items || []; } catch { REFS = []; }
+  try { TRN = await j('/api/transitions'); } catch {}
+  TASKS.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+  if (!TASKS.some(t => t.id === TID)) TID = (TASKS[0] || {}).id || '';
+  drawTasks(); await load();
+}
+function drawTasks() { $('#tsel').innerHTML = TASKS.map(t => `<option value="${t.id}" ${t.id === TID ? 'selected' : ''}>${esc(t.title)} (${t.count})</option>`).join('') || '<option value="">No tasks yet</option>'; }
+function pickTask(v) { TID = v; localStorage.setItem('simpleTask', v); load(); }
+async function load() {
+  clearTimeout(TM);
+  if (!TID) { $('#board').innerHTML = '<div class="empty"><b>Start your first task</b>A task holds the creatives you make together, for example the ones for one day.<p style="margin-top:14px"><button onclick="newTask()">New task</button></p></div>'; return; }
+  B = await j('/api/simple/board?task=' + encodeURIComponent(TID)); if (B.error) { $('#board').innerHTML = '<div class="card err">' + esc(B.error) + '</div>'; return; }
+  draw();
+  const busy = B.run || B.creatives.some(c => BUSY.includes(c.status) || ['voice', 'avatar', 'make', 'queued'].includes(c.step));
+  if (busy) TM = setTimeout(load, 4000);
+}
+function draw() {
+  const act = document.activeElement, keep = act && act.id ? { id: act.id, s: act.selectionStart, e: act.selectionEnd } : null;
+  const total = B.creatives.length, done = B.creatives.filter(c => c.outFile && !BUSY.includes(c.status)).length, ready = B.creatives.filter(c => !c.blocked && !c.skip).length;
+  $('#board').innerHTML = `<div class="ttl"><div class="ring" style="--p:${total ? Math.round(100 * done / total) : 0}"><i>${done}/${total}</i></div><div><h2>${esc(B.task.title)}</h2><div class="badge">${total} creative(s)</div></div>
+      <button class="sec" style="margin-left:auto" onclick="addCreative()">Add creative</button></div>
+    ${B.creatives.map(row).join('')}
+    <div class="dock"><button class="lg" onclick="makeAll()" ${B.run || !ready ? 'disabled' : ''}>Make all <span style="opacity:.8;font-weight:500">${ready}</span></button>
+      <div class="badge" style="flex:1">${B.run ? `Working: ${B.run.done + B.run.failed} of ${B.run.total} done` : ready ? 'The cost is shown before anything paid starts.' : 'Fill in the scripts and sources to start.'}</div>
+      ${B.limit ? `<div style="text-align:right" class="badge">Spent today $${B.spentToday.toFixed(2)} of $${B.limit}<div class="meter" style="margin:4px 0 0 auto"><i style="width:${Math.min(100, Math.round(100 * B.spentToday / B.limit))}%"></i></div></div>` : ''}</div>`;
+  if (keep) { const el = document.getElementById(keep.id); if (el) { el.focus(); try { el.setSelectionRange(keep.s, keep.e); } catch {} } }
+}
+function srcValue(c) { return c.mode === 'file' ? 'file:' + (c.media === 'voice' ? 'voice' : 'video') : c.mode ? c.mode + ':' + c.speakerId : (c.media ? 'file:' + (c.media === 'voice' ? 'voice' : 'video') : ''); }
+function srcOptions(c) {
+  const v = srcValue(c), o = [['', 'Choose the source…'], ['file:video', 'My video file'], ['file:voice', 'My voice file (voice-over)']];
+  for (const s of B.speakers) { if (s.voice && B.keys.eleven) o.push(['eleven:' + s.id, 'Voice of ' + s.name + ' (ElevenLabs)']); if (s.voice && s.avatar && B.keys.eleven && B.keys.heygen) o.push(['heygen:' + s.id, 'Avatar of ' + s.name + ' (HeyGen)']); }
+  return o.map(([val, l]) => `<option value="${esc(val)}" ${v === val ? 'selected' : ''}>${esc(l)}</option>`).join('');
+}
+// the chain of steps of one creative: voice / avatar (when the source needs them), inserts, render
+function stepsOf(c) {
+  const mode = c.mode || (c.media ? 'file' : ''), failed = c.step === 'error' || !!c.error, analyzed = c.analyzed != null ? c.analyzed : !!c.outFile;
+  const list = mode === 'eleven' ? [['Voice', !!c.media, c.step === 'voice']] : mode === 'heygen' ? [['Voice', !!c.media, c.step === 'voice'], ['Avatar', c.media === 'avatar video', c.step === 'avatar']] : [['Material', !!c.media, false]];
+  list.push(['Inserts', analyzed, c.status === 'analyzing'], ['Render', !!c.outFile && !BUSY.includes(c.status), c.status === 'rendering']);
+  let seenNow = false;
+  return list.map(([name, ok, now]) => { if (now) seenNow = true; return { name, ok, now, bad: failed && now }; });
+}
+function stepper(c) {
+  const st = stepsOf(c);
+  return `<div class="stp2">${st.map((s, i) => `${i ? `<div class="ln2 ${st[i - 1].ok ? 'ok' : ''}"></div>` : ''}<div class="s2 ${s.bad ? 'bad' : s.ok ? 'ok' : s.now ? 'now' : ''}"><span class="d">${s.ok ? '✓' : i + 1}</span>${s.name}</div>`).join('')}</div>`;
+}
+function statusChip(c) {
+  const busyP = BUSY.includes(c.status);
+  if (c.step === 'error' || c.error) return `<span class="pill bad">Stopped</span>`;
+  if (c.step === 'voice' || c.step === 'avatar') return `<span class="pill ac">${esc(c.stepMsg)}</span>`;
+  if (busyP) return `<span class="pill ac">${c.status === 'rendering' ? 'Rendering' : c.status === 'queued' ? 'In the queue' : 'Analyzing'}${c.status === 'rendering' ? ' ' + Math.round((c.progress || 0) * 100) + '%' : ''}</span>`;
+  if (c.outFile) return `<span class="pill ok">Ready</span>`;
+  if (c.blocked) return '';
+  return '<span class="pill">Ready to make</span>';
+}
+function row(c) {
+  const lf = LIFE[c.life] || LIFE.work, fileMode = (srcValue(c) || '').startsWith('file:'), empty = !c.script.trim() && !c.media && !c.mode, busyP = BUSY.includes(c.status);
+  const vid = c.outFile && !busyP ? `<video src="/files/${c.id}/${esc(c.outFile)}?v=${c.rendered || 0}" controls preload="metadata" playsinline></video>${c.duration ? `<span class="len">${Math.floor(c.duration / 60)}:${String(Math.round(c.duration % 60)).padStart(2, '0')}</span>` : ''}`
+    : `<div class="ph"><i>${busyP || c.step === 'voice' || c.step === 'avatar' ? '◌' : c.mode === 'eleven' ? '🎙' : c.mode === 'heygen' ? '🧑' : c.media ? '▶' : '＋'}</div>`.replace('</div>', '') + `<span>${busyP ? 'Working…' : c.media ? 'Material added' : 'No material yet'}</span></div>`;
+  return `<div class="cr ${empty ? 'empty-cr' : ''}" id="cr_${c.id}"><div class="vid">${vid}</div><div style="min-width:0">
+    <div class="hd"><span class="chip">${c.no || '·'}</span><input class="nm" id="nm_${c.id}" value="${esc(c.name)}" onchange="saveField('${c.id}','name',this.value)">${statusChip(c)}
+      <span class="pill ${lf[1]}" style="margin-left:auto" title="Status for the team">${lf[0]}${c.daysLeft != null ? ' · auto in ' + Math.max(0, c.daysLeft).toFixed(1) + ' d' : ''}</span><button class="ghost sm" title="Make a copy of this creative" onclick="dupCr('${c.id}')">Duplicate</button><button class="ghost sm" title="Delete this creative" onclick="delCr('${c.id}')">Delete</button><a class="btn sec sm" href="/typo.html?id=${c.id}" title="Animated key words, text scenes and phone frames, like the sample">Typographic</a><a class="btn sec sm" href="/#${c.id}" title="All the settings of this creative">Open in Pro</a></div>
+    <textarea id="sc_${c.id}" class="${c.outFile ? 'small' : ''}" placeholder="Script: what the speaker says" onchange="saveField('${c.id}','script',this.value)">${esc(c.script)}</textarea>
+    ${segBlock(c)}
+    ${NICHES.length > 1 ? `<div class="crow" style="margin-top:8px"><span class="chip2">Inserts from <select onchange="setLibs('${c.id}',this.value)"><option value="" ${c.libs ? '' : 'selected'}>this niche</option><option value="all" ${c.libs === 'all' ? 'selected' : ''}>all libraries</option></select></span><span class="badge">With “all libraries” a better clip from another niche is used too.</span></div>` : ''}
+    ${REFS.length ? `<div class="crow" style="margin-top:8px"><span class="chip2">Like a sample <select onchange="setRef('${c.id}',this.value)"><option value="">none</option>${REFS.map(r => `<option value="${r.id}" ${c.reference === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></span><span class="badge">The inserts and the hook are placed with the rhythm of a finished video from your archive.</span></div>` : ''}
+    <div class="src" ${c.segs && c.segs.on ? 'style="display:none"' : ''}><div><label>Where the voice or video comes from</label><select id="sr_${c.id}" onchange="setSource('${c.id}',this.value)">${srcOptions(c)}</select></div>
+      <div>${fileMode ? `<label>File</label><input type="file" accept="video/*,audio/*" ${srcValue(c).endsWith('voice') ? '' : 'multiple'} onchange="pickFiles('${c.id}',this.files,'${srcValue(c)}')"><div class="badge">${srcValue(c).endsWith('voice') ? '' : 'Several videos are joined into one.'}</div><div class="badge">${UP[c.id] ? esc(UP[c.id]) : c.media ? 'Added: ' + esc(c.media) : 'Not added yet'}</div>` : (c.mode === 'heygen' || c.mode === 'eleven') ? '<label>&nbsp;</label><div class="badge" style="padding-top:10px">Paid: you will see the cost before anything starts.</div>' : ''}</div></div>
+    ${c.blocked && !c.outFile ? `<div class="badge" style="margin-top:8px">${esc(c.blocked)}</div>` : ''}${c.step === 'error' || c.error ? `<div class="err" style="font-size:12px;margin-top:6px">${esc(c.stepMsg || c.error)}</div>` : ''}
+    ${empty ? '' : stepper(c)}${c.outFile ? tweaks(c) : ''}</div></div>`;
+}
+// ---- several speakers: a script with "Speaker 1:" / "Спикер 2:" lines
+function segBlock(c) {
+  const sg = c.segs; if (!sg) return '';
+  if (!sg.on) return '<div class="crow" style="margin-top:10px"><span class="badge">The script has speaker labels (Speaker 1, Speaker 2…).</span><button class="sec sm" onclick="segOn(\'' + c.id + '\')">Use several speakers</button></div>';
+  const who = sg.labels.map(l => '<div class="row" style="gap:10px;align-items:center;margin-top:4px"><span style="flex:0 0 110px">' + esc(l.label) + '</span><select onchange="segMap(\'' + c.id + '\',\'' + esc(l.label).replace(/'/g, '') + '\',this.value)"><option value="">— choose —</option>'
+    + B.speakers.map(s => '<option value="' + s.id + '"' + (s.id === l.speakerId ? ' selected' : '') + '>' + esc(s.name) + '</option>').join('') + '</select></div>').join('');
+  const parts = sg.blocks.map(b => '<div class="row" style="gap:8px;align-items:center;margin-top:6px"><span class="badge" style="width:22px">' + (b.i + 1) + '</span><span class="chip2" style="padding:1px 9px">' + esc(b.speaker || b.label || '?') + '</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut)">' + esc(b.text) + '</span>'
+    + '<span class="badge">' + (b.own ? '✓ video' : b.def ? 'default video' : 'no video') + '</span><input type="file" accept="video/*" style="max-width:190px" onchange="segFile(\'' + c.id + '\',' + b.i + ',this.files[0])"></div>').join('');
+  return '<div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:12px"><b>Several speakers</b><div class="badge">Choose the person for each name once. Each part of the script needs its own video (or a default video of the person on the Speakers page). The parts are joined in the order of the script.</div>'
+    + (B.speakers.length ? '' : '<div class="badge" style="margin-top:8px;color:var(--warn-tx)">There are no people yet. Add them first (Settings → People and voices), then choose them here.</div>')
+    + (sg.labels.some(l => !l.speakerId) ? '<p style="margin:8px 0 0"><button class="sec sm" onclick="segPeople(\'' + c.id + '\')">Create the people from these names</button></p>' : '')
+    + '<div style="margin-top:8px">' + who + '</div><div style="margin-top:8px">' + parts + '</div>' + (UP['seg' + c.id] ? '<div class="badge" style="margin-top:6px">' + esc(UP['seg' + c.id]) + '</div>' : '') + '</div>';
+}
+async function segPeople(id) { const r = await j('/api/projects/' + id + '/speakers-from-labels', {}); if (r.error) { toast(r.error); return; } await load(); }
+async function segOn(id) { await j('/api/projects/' + id, { segMode: 'segments' }); await load(); }
+async function segMap(id, label, speakerId) { await j('/api/projects/' + id + '/speaker-map', { label, speakerId }); await load(); }
+async function segFile(id, i, f) {
+  if (!f) return; UP['seg' + id] = 'Uploading part ' + (i + 1) + '…'; draw();
+  const fd = new FormData(); fd.append('video', f);
+  const r = await (await fetch('/api/projects/' + id + '/segments/' + i + '/media', { method: 'POST', body: fd })).json();
+  UP['seg' + id] = r.error ? r.error : ''; await load();
+}
+// the real result of the subtitles: six seconds from the real pipeline, shown in a window
+async function subsPreview(id) {
+  const d = $('#dlg'); const hf = (B.creatives.find(x => x.id === id) || { chips: {} }).chips.hfCaption;
+  d.innerHTML = '<h3>Subtitles: the real result</h3><div class="badge">Rendering six seconds… ' + (hf ? 'an animated template takes about a minute.' : 'a few seconds.') + '</div><p style="margin-top:12px;text-align:right"><button class="sec" onclick="$(\'#dlg\').close()">Close</button></p>'; d.showModal();
+  const r = await j('/api/projects/' + id + '/preview', { w: 540 });
+  d.innerHTML = '<h3>Subtitles: the real result</h3>' + (r.error ? '<div class="err">' + esc(r.error) + '</div>' : '<video controls autoplay loop playsinline src="' + r.url + '" style="width:100%;max-width:300px;border-radius:10px;background:#000"></video><div class="badge">The real render of ' + r.from.toFixed(1) + '–' + r.to.toFixed(1) + ' s.</div>') + '<p style="margin-top:12px;text-align:right"><button class="sec" onclick="$(\'#dlg\').close()">Close</button></p>';
+}
+// ---- transitions: for the whole video and for every insert
+function trnOptions(cur, perCut) {
+  const groups = [['basic', 'Basic'], ['light', 'Light'], ['zoom', 'Zoom'], ['news', 'News']];
+  return (perCut ? '<option value="">Same as the whole video</option>' : '') + groups.map(([g, l]) => '<optgroup label="' + l + '">' + TRN.list.filter(t => t.group === g).map(t => '<option value="' + t.id + '"' + (cur === t.id ? ' selected' : '') + '>' + esc(t.label) + '</option>').join('') + '</optgroup>').join('')
+    + (perCut ? '' : '<optgroup label="Mixes">' + TRN.mix.map(([v, l]) => '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</optgroup>');
+}
+function insertsList(c) {
+  if (!c.cuts || !c.cuts.length) return '';
+  const mm = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
+  const kind = { hook: 'Hook', card: 'Card', stock: 'Stock', clip: 'Clip' };
+  return '<details class="more" style="margin-top:8px"><summary>Inserts (' + c.cuts.length + '): a transition for each</summary><div class="body">' + c.cuts.map(x => '<div class="row" style="gap:8px;align-items:center;margin-top:6px"><span class="badge" style="width:42px">' + mm(x.start) + '</span><span class="chip2" style="padding:1px 9px">' + kind[x.kind] + '</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut)">' + esc(x.text) + '</span>'
+    + (x.kind === 'hook' ? '' : '<select style="max-width:210px" onchange="setCutTr(\'' + c.id + '\',' + x.i + ',this.value)">' + trnOptions(x.tr, true) + '</select>') + '</div>').join('') + '</div></details>';
+}
+async function setTrans(id, v) { await j('/api/projects/' + id, { transition: v }); await mark(id); await load(); }
+async function setTransDur(id, v) { await j('/api/projects/' + id, { transDur: v }); await mark(id); await load(); }
+async function setCutTr(id, i, v) { const r = await j('/api/simple/cut-tr', { id, i, tr: v }); if (r.error) { toast(r.error); return; } await load(); }
+function tweaks(c) {
+  const k = c.chips;
+  return `<div class="crow"><span class="chip2">Hook: ${k.hook ? esc(k.hook.clip) + ' · ' + k.hook.dur + ' s' : 'none'} <button class="sm sec" onclick="hookNext('${c.id}')">Another</button><button class="sm sec" onclick="hookAB('${c.id}')">A/B</button></span>
+      <span class="chip2">Music <select onfocus="loadSug('${c.id}')" onchange="setMusic('${c.id}',this.value)" id="mu_${c.id}">${musicOptions(c)}</select></span>
+      <span class="chip2"><button class="sm sec" title="Render six seconds with these subtitles" onclick="subsPreview('${c.id}')">Preview</button> Subtitles <select onchange="setStyle('${c.id}',this.value)"><optgroup label="Quick">${STY.map(s => `<option value="${s.id}" ${!k.hfCaption && s.id === k.subStyle ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</optgroup>${HFC.length ? `<optgroup label="Animated templates (slower)">${HFC.map(s => `<option value="hf:${s.id}" ${k.hfCaption === s.id ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</optgroup>` : ''}</select></span>
+      <label class="chip2" style="cursor:pointer"><input type="checkbox" ${k.cardsOn ? 'checked' : ''} onchange="setCards('${c.id}',this.checked)"> Text cards</label>
+      <span class="chip2">Transitions <select onchange="setTrans('${c.id}',this.value)">${trnOptions(c.transition, false)}</select></span>
+      <span class="chip2">Speed <select onchange="setTransDur('${c.id}',+this.value)">${[[0.2, 'Fast'], [0.35, 'Normal'], [0.6, 'Slow']].map(([v, l]) => `<option value="${v}" ${Math.abs((c.transDur || 0.35) - v) < 0.08 ? 'selected' : ''}>${l}</option>`).join('')}</select></span></div>
+    ${insertsList(c)}
+    <div class="crow" style="margin-top:12px">${c.changed ? `<button onclick="applyChanges('${c.id}')">Apply changes</button>` : ''}
+      ${c.life !== 'review' && c.life !== 'approved' ? `<button class="sec" onclick="life('${c.id}','review')">Hand over for review</button>` : ''}${c.life !== 'approved' ? `<button class="sec" onclick="life('${c.id}','approved')">Approved</button>` : ''}
+      <a class="btn ghost" href="/files/${c.id}/${esc(c.outFile)}?v=${c.rendered || 0}" download>Download</a><span class="badge">${k.inserts} insert(s)${k.cards ? ', ' + k.cards + ' card(s)' : ''}${c.qc === 'fail' ? ' · check found problems' : ''}</span></div>`;
+}
+function musicOptions(c) { const cur = c.chips.music, s = SUG[c.id] || []; const ids = [...new Set([cur, ...s.map(x => x.id)].filter(Boolean))]; return `<option value="">none</option>` + ids.map(id => `<option value="${id}" ${id === cur ? 'selected' : ''}>${esc((s.find(x => x.id === id) || {}).label || id)}</option>`).join(''); }
+async function loadSug(id) { if (SUG[id]) return; const r = await j('/api/projects/' + id + '/music-suggest'); SUG[id] = (r.items || []); const sel = document.getElementById('mu_' + id), c = B.creatives.find(x => x.id === id); if (sel && c) sel.innerHTML = musicOptions(c); }
+
+// ---- editing ----
+async function saveField(id, k, v) { await j('/api/projects/' + id, k === 'script' ? { [k]: v, auto: 'segments' } : { [k]: v }); const c = B.creatives.find(x => x.id === id); if (c) c[k] = v; await load(); }
+async function setSource(id, v) {
+  const [kind, sp] = v.split(':'); const mode = kind === 'file' ? 'file' : kind || '';
+  if (kind === 'file') UP[id] = '';
+  await j('/api/simple/source', { id, mode, speakerId: kind === 'file' ? '' : sp || '' }); await load();
+}
+async function upload(id, f, src) {
+  if (!f) return; UP[id] = 'Uploading…'; draw();
+  const fd = new FormData(); fd.append(src.endsWith('voice') ? 'voice' : 'presenter', f);
+  const r = await (await fetch('/api/projects/' + id + '/media', { method: 'POST', body: fd })).json();
+  UP[id] = r.error ? r.error : 'Added: ' + f.name; await j('/api/simple/source', { id, mode: 'file', speakerId: '' }); await load();
+}
+// one file: as before. Several videos of the speaker: ordered in a small window, then joined into one speaker video
+let JL = null;
+function pickFiles(id, files, src) {
+  if (!files.length) return;
+  if (files.length === 1 || src.endsWith('voice')) return upload(id, files[0], src);
+  JL = { id, files: [...files] }; joinDlg();
+}
+function joinDlg() {
+  const d = $('#dlg');
+  d.innerHTML = '<h3>Join ' + JL.files.length + ' videos into one</h3><div class="badge">They are joined in this order into one video of the speaker.</div>'
+    + JL.files.map((f, i) => '<div class="row" style="gap:8px;align-items:center;margin-top:6px"><span class="badge" style="width:22px">' + (i + 1) + '</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(f.name) + '</span><span class="badge">' + (f.size / 1048576).toFixed(0) + ' MB</span>'
+      + '<button class="sec sm" onclick="joinMv(' + i + ',-1)"' + (i ? '' : ' disabled') + '>↑</button><button class="sec sm" onclick="joinMv(' + i + ',1)"' + (i < JL.files.length - 1 ? '' : ' disabled') + '>↓</button><button class="sec sm" onclick="joinRm(' + i + ')">✕</button></div>').join('')
+    + '<p style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end"><button class="sec" onclick="$(\'#dlg\').close()">Cancel</button><button onclick="joinGo()" ' + (JL.files.length > 1 ? '' : 'disabled') + '>Join and upload</button></p>';
+  if (!d.open) d.showModal();
+}
+function joinMv(i, dlt) { const j2 = i + dlt; if (j2 < 0 || j2 >= JL.files.length) return; [JL.files[i], JL.files[j2]] = [JL.files[j2], JL.files[i]]; joinDlg(); }
+function joinRm(i) { JL.files.splice(i, 1); joinDlg(); }
+async function joinGo() {
+  const { id, files } = JL; $('#dlg').close();
+  const fd = new FormData(); files.forEach(f => fd.append('parts', f));
+  UP[id] = 'Uploading… 0%'; draw();
+  const r = await new Promise(res => { const x = new XMLHttpRequest(); x.open('POST', '/api/projects/' + id + '/media-join');
+    x.upload.onprogress = e => { if (e.lengthComputable) { UP[id] = 'Uploading… ' + Math.round(100 * e.loaded / e.total) + '%'; draw(); } };
+    x.onload = () => { try { res(JSON.parse(x.responseText)); } catch { res({ error: 'The server answered with an error (' + x.status + ').' }); } }; x.onerror = () => res({ error: 'The upload was interrupted.' }); x.send(fd); });
+  if (r.error) { UP[id] = r.error; draw(); return; }
+  for (let k = 0; k < 1800; k++) {
+    await new Promise(ok => setTimeout(ok, 2000));
+    const s = await j('/api/projects/' + id + '/join'), jn = s.join || {};
+    if (jn.status === 'running') { UP[id] = 'Joining… ' + jn.done + ' of ' + jn.total; draw(); }
+    else if (jn.status === 'error') { UP[id] = jn.error || 'It did not work.'; draw(); return; }
+    else if (jn.status === 'done') { UP[id] = 'Joined: ' + files.length + ' videos'; await j('/api/simple/source', { id, mode: 'file', speakerId: '' }); await load(); return; }
+  }
+}
+async function dupCr(id) { const c = B.creatives.find(x => x.id === id); const r = await j('/api/projects/' + id + '/duplicate', { name: (c ? c.name : 'Creative') + ' (copy)' }); if (r.error) { toast(r.error); return; } toast('Copy made.'); await load(); }
+async function delCr(id) { const c = B.creatives.find(x => x.id === id); if (!await uiConfirm('Delete “' + (c ? c.name : 'this creative') + '” with its files and renders? This cannot be undone.', 'Delete', true)) return; const r = await j('/api/projects/' + id + '/delete', {}); if (r.error) { toast(r.error); return; } await load(); }
+// the libraries: used by the next analysis; a creative that is already made is made again at once
+async function setLibs(id, v) {
+  await j('/api/projects/' + id, { libs: v });
+  const c = B.creatives.find(x => x.id === id); if (c) c.libs = v;
+  if (c && (c.outFile || c.analyzed)) {
+    const pl = await j('/api/simple/plan', { taskId: TID, ids: [id], force: true });
+    if (pl.paid) { toast('Choose “Make all” to apply it (it has paid steps).'); await load(); return; }
+    const r = await j('/api/simple/run', { token: pl.token }); if (r.error) { toast(r.error); return; } toast('Making it again with the chosen libraries…');
+  }
+  await load();
+}
+// choosing a sample: it is used by the next analysis; a creative that is already made is analyzed again at once
+async function setRef(id, ref) {
+  await j('/api/projects/' + id + '/reference', { id: ref || null });
+  const c = B.creatives.find(x => x.id === id); if (c) c.reference = ref || '';
+  if (c && (c.outFile || c.analyzed) && ref) {
+    const pl = await j('/api/simple/plan', { taskId: TID, ids: [id], force: true });
+    if (pl.paid) { toast('Choose “Make all” to apply the sample (it has paid steps).'); await load(); return; }
+    const r = await j('/api/simple/run', { token: pl.token }); if (r.error) { toast(r.error); return; } toast('Making it again with the sample…');
+  }
+  await load();
+}
+async function addCreative() { await j('/api/simple/creatives', { task: TID }); await load(); }
+async function newTask() {
+  const d = $('#dlg'); d.innerHTML = `<h3>New task</h3><label>Name</label><input id="ntt" placeholder="Weight loss, 9 October"><div class="row" style="gap:10px"><div><label>Niche</label><select id="ntn">${NICHES.map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join('')}</select></div><div style="flex:0 0 110px"><label>Creatives</label><input id="ntc" type="number" min="1" max="12" value="4"></div></div>
+    <div class="badge" style="margin-top:8px">The look of the niche (subtitles, transitions, music) is applied to every creative.</div>
+    <p style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end"><button class="sec" onclick="$('#dlg').close()">Cancel</button><button onclick="createTask()">Create</button></p>`; d.showModal();
+}
+async function createTask() {
+  const r = await j('/api/simple/tasks', { title: $('#ntt').value.trim() || 'New task', niche: $('#ntn').value, count: +$('#ntc').value || 4 }); $('#dlg').close();
+  TASKS = await j('/api/tasks'); TASKS.sort((a, b) => (b.updated || 0) - (a.updated || 0)); TID = r.id; localStorage.setItem('simpleTask', TID); drawTasks(); await load();
+}
+// ---- quick changes on a finished creative ----
+async function mark(id) { await j('/api/simple/changed', { id, changed: true }); const c = B.creatives.find(x => x.id === id); if (c) c.changed = true; }
+async function hookNext(id) { const r = await j('/api/projects/' + id + '/hook-next', {}); if (r.error) { toast(r.error); return; } await mark(id); await load(); }
+async function hookAB(id) { const r = await j('/api/projects/' + id + '/hook-variants', { count: 2 }); if (r.error) { toast(r.error); return; } toast(r.made.length + ' copy(ies) made: ' + r.made.map(m => m.name).join(', ')); TASKS = await j('/api/tasks'); await load(); }
+async function setStyle(id, v) { if (v.startsWith('hf:')) await j('/api/projects/' + id + '/hfcaption', { id: v.slice(3) }); else { await j('/api/projects/' + id, { subStyle: v }); await j('/api/projects/' + id + '/hfcaption', { id: '' }); } await mark(id); await load(); }
+async function setMusic(id, v) { const p = await j('/api/projects/' + id), a = p.audio || { sfx: [], musicVol: 0.18 }; await j('/api/projects/' + id + '/audio', { ...a, music: v || null }); await mark(id); await load(); }
+async function setCards(id, on) {
+  const p = await j('/api/projects/' + id); await j('/api/projects/' + id, { cardsOn: on });
+  if (!on && p.cuts) await j('/api/projects/' + id + '/cuts', { cuts: p.cuts.filter(c => c.clip !== 'card') });
+  else toast('Cards come back the next time the creative is analyzed.');
+  await mark(id); await load();
+}
+async function applyChanges(id) { const c = B.creatives.find(x => x.id === id); const r = await j('/api/projects/' + id + '/render', { format: c.format }); if (r.error) { toast(r.error); return; } await j('/api/simple/changed', { id, changed: false }); await load(); }
+async function life(id, state) { await j('/api/projects/' + id + '/life', { state }); await load(); }
+
+// ---- Make all ----
+async function makeAll(live) {
+  const pl = await j('/api/simple/plan', { taskId: TID, heygenLive: !!live });
+  const todo = pl.rows.filter(r => !r.blocked && !r.skip), skipped = pl.rows.filter(r => r.blocked || r.skip);
+  if (!todo.length) { return dialog('Nothing to make yet', `${skipped.map(r => `<div class="badge"><b>${esc(r.name)}</b>: ${esc(r.blocked || r.skip)}</div>`).join('') || '<div class="badge">This task has no creatives.</div>'}`, null); }
+  if (!pl.paid) { const r = await j('/api/simple/run', { token: pl.token }); if (r.error) { toast(r.error); return; } toast(todo.length + ' creative(s) started'); return load(); }
+  const heygen = pl.heygenSeconds > 0;
+  dialog('Confirm the costs', `<div class="badge">These services are paid. Nothing starts before you confirm.</div>
+    ${todo.map(r => `<div style="margin-top:8px"><b>${esc(r.name)}</b> <span class="badge">${r.steps.filter(s => s.kind !== 'make').map(s => s.kind === 'eleven' ? 'voice: ' + s.chars + ' characters' : 'avatar: about ' + s.seconds + ' s' + (s.test ? ' (test mode)' : '')).join(' · ') || 'no paid steps'}</span></div>`).join('')}
+    <div style="margin-top:12px">${pl.elevenChars ? `<div>ElevenLabs: <b>${pl.elevenChars}</b> characters</div>` : ''}${heygen ? `<div>HeyGen: about <b>${pl.heygenSeconds}</b> seconds (${pl.heygenLive ? 'real, paid' : 'test mode: free, with a watermark'})</div>` : ''}
+      ${pl.usd > 0 ? `<div>Estimated: <b>about $${pl.usd.toFixed(2)}</b> <span class="badge">${esc(pl.note)}</span></div>` : `<div class="badge">${esc(pl.note)}</div>`}
+      ${pl.budget.limit ? `<div class="badge">Spent today $${pl.budget.spent.toFixed(2)} of $${pl.budget.limit}${pl.budget.over ? '' : ' · after this about $' + pl.budget.after.toFixed(2)}</div>` : ''}
+      ${pl.budget.over ? '<div class="err" style="margin-top:6px">This would go over the daily limit. Raise it in Settings or make fewer creatives.</div>' : ''}</div>
+    ${heygen ? `<label class="chk" style="margin-top:10px"><input type="checkbox" id="hglive" ${pl.heygenLive ? 'checked' : ''} onchange="$('#dlg').close();makeAll(this.checked)"> Real HeyGen generation (paid). Off = test mode.</label>` : ''}
+    ${skipped.length ? `<div class="badge" style="margin-top:10px">Skipped: ${skipped.map(r => esc(r.name) + ' (' + esc(r.blocked || r.skip) + ')').join('; ')}</div>` : ''}`,
+    pl.budget.over ? null : async () => { const r = await j('/api/simple/run', { token: pl.token }); if (r.error) { toast(r.error); return; } toast(todo.length + ' creative(s) started'); load(); });
+}
+let DCB = null;
+function dialog(title, body, ok) {
+  DCB = ok; const d = $('#dlg');
+  d.innerHTML = `<h3>${esc(title)}</h3><div style="margin-top:8px">${body}</div><p style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end"><button class="sec" onclick="$('#dlg').close()">${ok ? 'Cancel' : 'Close'}</button>${ok ? '<button onclick="dlgOk()">Confirm and start</button>' : ''}</p>`; d.showModal();
+}
+async function dlgOk() { $('#dlg').close(); if (DCB) await DCB(); }
+init();
+</script></body></html>

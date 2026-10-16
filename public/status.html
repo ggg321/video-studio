@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Status</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css">
+<style>
+.hl{display:flex;gap:14px;align-items:flex-start;border-left:4px solid var(--ok)}.hl.warn{border-left-color:var(--warn)}.hl.bad{border-left-color:var(--danger)}
+.hl .big{font-size:30px;line-height:1}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}@media(max-width:900px){.two{grid-template-columns:1fr}}
+.two>.card{margin:0}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line)}.kv:first-of-type{border-top:0}
+.meter{height:8px;border-radius:6px;background:var(--raise);overflow:hidden;margin:6px 0 10px}.meter i{display:block;height:100%;background:var(--ac-strong)}.meter.low i{background:var(--warn)}.meter.crit i{background:var(--danger)}
+.log{font:12px/1.5 ui-monospace,Consolas,monospace;color:var(--mut);white-space:pre-wrap;max-height:260px;overflow:auto;background:var(--surface);border-radius:8px;padding:10px}
+.bk{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}.bk b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.tool{display:flex;gap:10px;align-items:center;padding:6px 0}
+.stack>.card{margin-bottom:16px}
+</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<h1 class="page-title">Status</h1><p class="page-sub">Is everything running, is there room on the disk, are the backups fresh. This page refreshes itself.</p>
+<div id="hl" class="card hl"></div>
+<div class="two" style="margin-bottom:16px"><div class="card" id="queue"></div><div class="card" id="disk"></div></div>
+<div class="card" id="backup"></div>
+<div class="two" style="margin-bottom:16px"><div class="card" id="startup"></div><div class="card" id="tools"></div></div>
+<div class="card" id="tg"></div>
+<div class="card"><h2>Recent events</h2><div id="events"></div><details class="more"><summary>Server log (last lines)</summary><div class="body"><div class="log" id="log"></div></div></details></div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $=s=>document.querySelector(s);const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const j=(u,b)=>fetch(u,b===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json());
+const mb=b=>b>=1073741824?(b/1073741824).toFixed(1)+' GB':Math.round(b/1048576)+' MB';
+const dur=s=>s<90?Math.round(s)+' s':s<5400?Math.round(s/60)+' min':(s/3600).toFixed(1)+' h';
+const ago=t=>{const s=(Date.now()-t)/1000;return s<90?'just now':s<5400?Math.round(s/60)+' min ago':s<172800?Math.round(s/3600)+' h ago':Math.round(s/86400)+' days ago'};
+let S=null,FIRST=true;
+const KIND={analyze:'Analysis',render:'Render',assemble:'Assembling segments'};
+function head(){const h=S.health;const ok=h.level==='ok';$('#hl').className='card hl '+(h.level==='ok'?'':h.level);
+ $('#hl').innerHTML=`<div class="big">${ok?'✅':h.level==='bad'?'⛔':'⚠️'}</div><div><h2 style="margin-bottom:6px">${ok?'Everything is fine':h.level==='bad'?'Needs attention now':'Worth a look'}</h2>${h.reasons.map(r=>`<div class="${r.level==='bad'?'err':'warn'}">${r.level==='bad'?'⛔':'⚠'} ${esc(r.text)}</div>`).join('')||'<div class="badge">Server running for '+dur(S.uptime)+'. Nothing needs your attention.</div>'}</div>`}
+function queue(){const q=S.queue,r=q.running;
+ $('#queue').innerHTML=`<h2>Work queue</h2>
+ ${r?`<div class="kv"><span>Now</span><b>${esc(KIND[r.kind]||r.kind)}: <a href="/#${esc(r.projectId)}">${esc(r.name||r.projectId)}</a></b></div><div class="kv"><span>Running for</span><b>${dur((Date.now()-r.since)/1000)}</b></div>`:'<div class="kv"><span>Now</span><b>Idle</b></div>'}
+ <div class="kv"><span>Waiting</span><b>${q.waiting}</b></div><div class="kv"><span>Projects</span><b>${S.total}</b></div>
+ ${S.recover?`<div class="hint warn" style="margin-top:10px">${S.recover} interrupted job(s) can be restarted on the Projects page.</div>`:''}
+ ${S.failed.length?`<h3 style="margin-top:14px">Ended with an error</h3>${S.failed.map(f=>`<div class="kv"><span><a href="/#${esc(f.id)}">${esc(f.name)}</a><div class="badge">${esc(f.error)}</div></span><span class="badge">${ago(f.at)}</span></div>`).join('')}`:''}`}
+function disk(){const d=S.disk,z=S.sizes||{};const used=d.total?(1-d.free/d.total)*100:0;const cls=d.free<3*1073741824?'crit':d.free<10*1073741824?'low':'';
+ const tot=Object.values(z).reduce((a,b)=>a+b,0)||1;
+ const rows=[['projects','Projects'],['exports','Exports'],['library','Library clips'],['backups','Backups'],['tools','Tools']];
+ $('#disk').innerHTML=`<h2>Disk space</h2><div class="kv" style="border:0"><span>Free</span><b>${d.free==null?'?':mb(d.free)} of ${d.total==null?'?':mb(d.total)}</b></div><div class="meter ${cls}"><i style="width:${used.toFixed(0)}%"></i></div>
+ ${rows.map(([k,l])=>`<div class="kv"><span>${l}</span><b>${z[k]==null?'…':mb(z[k])}</b></div>`).join('')}
+ <div class="row mid" style="margin-top:12px;justify-content:flex-start"><button class="sec" onclick="cleanDlg()">Free up space</button>${S.lastClean?`<span class="badge">Last clean-up ${ago(S.lastClean.at)}, freed ${mb(S.lastClean.freed)}</span>`:''}</div>`}
+async function cleanDlg(){const c=await j('/api/maint/clean',{dry:true});const total=c.reduce((a,x)=>a+x.bytes,0);
+ const body=`<div class="badge" style="margin-bottom:10px">Only leftovers that are rebuilt automatically. Videos, exports, clips and projects are never touched.</div>${c.map(x=>`<label class="chk" style="align-items:flex-start"><input type="checkbox" value="${x.id}" ${x.bytes>0&&x.id!=='installers'?'checked':''} ${x.bytes>0?'':'disabled'}><span><b>${esc(x.label)}</b> <span class="badge">${mb(x.bytes)}</span><div class="badge">${esc(x.note)}</div></span></label>`).join('')}`;
+ if(!await uiAsk('Free up space',body,'Clean up'))return;
+ const ids=[...document.querySelectorAll('#uidlg input[type=checkbox]:checked')].map(i=>i.value);if(!ids.length)return;
+ const r=await j('/api/maint/clean',{ids});if(r.error){toast(r.error);return}toast('Freed '+mb(r.total));load()}
+function backup(){const b=S.backup,o=S.settings,l=b.last;
+ $('#backup').innerHTML=`<h2>Backups</h2><div class="row mid" style="justify-content:space-between"><div><div>${l?`Last backup <b>${ago(l.at)}</b> <span class="badge">${mb(l.size)}${l.keys?' · with API keys':''}</span>`:'<b>No backup yet</b>'}</div><div class="badge">Saved in: ${esc(b.dir)}</div></div><button onclick="doBackup()" id="bkbtn">Back up now</button></div>
+ <div style="margin-top:8px">${b.list.map(x=>`<div class="bk"><b>${esc(x.name)}</b><span class="badge">${mb(x.size)} · ${ago(x.at)}</span><button class="sec sm" onclick="restore('${esc(x.name)}')">Restore</button></div>`).join('')||'<div class="badge" style="padding:10px 0">Nothing here yet.</div>'}</div>
+ <details class="more"><summary>Backup settings</summary><div class="body">
+ <label class="chk"><input type="checkbox" id="m_auto" ${o.autoBackup?'checked':''}> Back up automatically once a day (only when no job is running)</label>
+ <div class="row"><div><label>Keep the last</label><input type="number" id="m_keep" min="1" max="60" value="${o.backupKeep}"></div><div style="flex:2"><label>Folder (empty = the “backups” folder of the app; an external drive is a good idea)</label><input id="m_dir" value="${esc(o.backupDir)}" placeholder="D:\\Backups\\VideoStudio"></div></div>
+ <label class="chk"><input type="checkbox" id="m_keys" ${o.includeKeys?'checked':''}> Include API keys (the file then must be kept private)</label>
+ <label class="chk"><input type="checkbox" id="m_lib" ${o.includeLibrary?'checked':''}> Include the library clips (large; the tags and notes are always included)</label>
+ <label class="chk"><input type="checkbox" id="m_ren" ${o.includeRenders?'checked':''}> Include finished videos and stock downloads (large)</label>
+ <label class="chk"><input type="checkbox" id="m_clean" ${o.autoClean?'checked':''}> Clean temporary files automatically once a week or when the disk is low</label>
+ <div class="row mid" style="justify-content:flex-start;margin-top:10px"><button class="sec" onclick="saveSet()">Save settings</button></div></div></details>`}
+async function saveSet(){await j('/api/maint/settings',{autoBackup:$('#m_auto').checked,backupKeep:$('#m_keep').value,backupDir:$('#m_dir').value,includeKeys:$('#m_keys').checked,includeLibrary:$('#m_lib').checked,includeRenders:$('#m_ren').checked,autoClean:$('#m_clean').checked});toast('Saved.');load()}
+async function doBackup(){const bt=$('#bkbtn');bt.disabled=true;bt.textContent='Working…';const r=await j('/api/maint/backup',{});if(r.error)toast(r.error);else toast('Backup saved: '+r.name);load()}
+async function restore(n){if(!await uiConfirm('Restore from '+n+'? Projects, tasks, speakers and niche data are replaced by the backup. A safety copy of today’s state is made first.','Restore',true))return;toast('Restoring…',20000);const r=await j('/api/maint/restore',{name:n});toast(r.error||'Restored. Reload the other pages.');load()}
+function startup(){$('#startup').innerHTML=`<h2>Start with Windows</h2><div class="kv" style="border:0"><span>Automatic start at log-in</span><b class="${S.autostart?'ok':'warn'}">${S.autostart?'On':'Off'}</b></div>
+ <div class="badge" style="margin:6px 0 12px">${S.autostart?'The app starts by itself when you log in, and restarts if it ever stops.':'Turn it on so the app is back after every reboot. It uses the Windows Task Scheduler for your user only, no administrator rights.'}</div>
+ <button class="sec" onclick="setAuto(${!S.autostart})">${S.autostart?'Turn off':'Turn on'}</button>`}
+async function setAuto(on){if(!await uiConfirm(on?'Start Video Studio automatically when you log in to Windows?':'Stop starting Video Studio automatically?',on?'Turn on':'Turn off'))return;const r=await j('/api/maint/autostart',{on});toast(r.ok?'Done.':'Windows refused the change.');load()}
+function tools(){$('#tools').innerHTML=`<h2>Tools</h2>${S.tools.map(t=>`<div class="tool"><b class="${t.ok?'ok':t.need?'err':'warn'}">${t.ok?'✓':t.need?'✕':'–'}</b><span>${esc(t.label)}${!t.ok&&!t.need?' <span class="badge">optional, a simpler method is used</span>':''}</span></div>`).join('')}`}
+function events(){const K={backup:'💾',clean:'🧹',restore:'♻️',error:'⚠️',start:'▶️'};$('#events').innerHTML=S.events.slice(0,12).map(e=>`<div class="kv"><span>${K[e.kind]||'•'} ${esc(e.text)}</span><span class="badge">${ago(e.at)}</span></div>`).join('')||'<div class="badge">Nothing yet.</div>';$('#log').textContent=(S.log||[]).join('\n')||'(empty)'}
+function draw(){head();queue();disk();startup();tools();events();if(FIRST||!document.querySelector('#backup details.more[open]')){backup()}FIRST=false}
+async function load(){S=await j('/api/status?full=1');draw()}
+
+let TG=null;
+async function tgLoad(){TG=await j('/api/telegram');tgDraw()}
+function tgDraw(){const p=TG.prefs,on=TG.enabled;
+ const chk=(k,l)=>'<label class="chk"><input type="checkbox" id="tg_'+k+'" '+(p[k]?'checked':'')+' onchange="tgPrefs()"> '+l+'</label>';
+ $('#tg').innerHTML='<h2>Telegram notifications</h2>'+
+ '<div class="row mid" style="justify-content:flex-start;margin-bottom:8px">'+(on?'<span class="pill ok">Connected</span><span class="badge">'+(TG.bot?'@'+esc(TG.bot)+' · ':'')+'chat '+esc(TG.chat)+'</span>':'<span class="pill">Not connected</span>')+'</div>'+
+ (on?'':'<div class="hint">1. In Telegram open @BotFather, create a bot and copy its token. 2. Paste the token below and save. 3. Open your bot in Telegram and press Start. 4. Press “Find my chat”, then “Send test”.</div>')+
+ '<div class="row"><div><label>Bot token'+(TG.hasToken?' <span class="pill ok">Connected</span>':'')+'</label><input id="tg_token" type="password" autocomplete="off" placeholder="'+(TG.hasToken?'saved — leave empty to keep':'123456789:AA…')+'"></div><button class="sec" onclick="tgSaveToken()">Save token</button></div>'+
+ '<div class="row"><div><label>Chat id</label><input id="tg_chat" value="'+esc(TG.chat)+'" placeholder="filled by “Find my chat”"></div><button class="sec" onclick="tgSaveChat()">Save chat</button><button class="sec" onclick="tgDetect()">Find my chat</button><button onclick="tgTest()" '+(on?'':'disabled')+'>Send test</button></div>'+
+ '<hr class="sep"><div class="row top"><div>'+chk('ready','A video is ready')+chk('video','Attach the finished video (up to 50 MB)')+chk('taskDone','All videos of a task are ready')+chk('asana','A buyer wrote in the Asana task')+chk('approval','A creative was approved automatically')+'</div><div>'+chk('errors','Analysis or render failed')+chk('health','Health changes (disk space, errors, long jobs)')+chk('backup','Backup failures')+'</div>'+
+ '<div style="flex:0 0 170px"><label>Message language</label><select id="tg_lang" onchange="tgPrefs()">'+[['ru','Русский'],['uk','Українська'],['en','English']].map(function(x){return '<option value="'+x[0]+'" '+(p.lang===x[0]?'selected':'')+'>'+x[1]+'</option>'}).join('')+'</select></div></div>'+
+ (TG.hasToken?'<div class="row mid" style="margin-top:8px;justify-content:flex-start"><button class="danger sm" onclick="tgClear()">Disconnect</button><span class="badge">Messages contain only project names and status. The token is stored only on this computer.</span></div>':'')}
+async function tgSaveToken(){const t=$('#tg_token').value.trim();if(!t){toast('Paste the bot token first.');return}const r=await j('/api/telegram/save',{token:t});if(r.error){toast(r.error);return}TG=r;tgDraw();toast('Token saved.')}
+async function tgSaveChat(){TG=await j('/api/telegram/save',{chat:$('#tg_chat').value});tgDraw();toast('Saved.')}
+async function tgDetect(){const r=await j('/api/telegram/detect',{});if(r.error){toast(r.error);return}toast('Chat found: '+(r.name||r.chat));tgLoad()}
+async function tgTest(){const r=await j('/api/telegram/test',{});toast(r.error||'Test message sent. Check Telegram.')}
+async function tgPrefs(){const q={};for(const k of ['ready','video','taskDone','errors','health','backup','asana','approval'])q[k]=$('#tg_'+k).checked;q.lang=$('#tg_lang').value;TG=await j('/api/telegram/save',{prefs:q});tgDraw()}
+async function tgClear(){if(!await uiConfirm('Disconnect Telegram and forget the token?','Disconnect',true))return;TG=await j('/api/telegram/save',{clear:true});tgDraw()}
+load();tgLoad();setInterval(()=>{if(!document.hidden)load()},8000);
+</script></body></html>

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video for approval</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css">
+<style>body{display:grid;place-items:center;min-height:100vh;padding:20px}main{max-width:540px;width:100%}.card{padding:24px}h2{font-size:20px!important;margin-bottom:16px!important}video{width:100%}.btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.btns button{flex:1}.a{background:#2f9d63}.a:hover{background:#38b072}.c{background:#c78a1d}.c:hover{background:#d99a2a}</style></head>
+<body><main><div class="card"><h2 id="t"></h2><video id="v" controls></video><label for="who">Your name</label><input id="who" placeholder="Your name"><label for="note">Comments (optional)</label><textarea id="note" rows="3" style="min-height:90px" placeholder="Comments (optional)"></textarea>
+<div class="btns"><button class="a" onclick="send('approved')">Approve</button><button class="c" onclick="send('changes')">Changes requested</button></div><p id="msg" class="ok" style="margin:14px 0 0"></p></div></main>
+<script>const id=location.pathname.split('/').pop();
+fetch('/api/share/'+id).then(r=>r.json()).then(d=>{t.textContent=d.name;if(d.video)v.src=d.video;else t.textContent+=' (not ready yet)'});
+function send(s){fetch('/api/share/'+id+'/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({who:who.value,note:note.value,status:s})}).then(()=>msg.textContent='Thank you! Your response has been sent.')}</script><script src="/i18n.js"></script></body></html>

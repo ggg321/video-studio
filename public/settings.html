@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Settings</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>
+.wrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:22px;align-items:start}
+.side{position:sticky;top:76px;display:grid;gap:2px}
+.side a{padding:9px 12px;border-radius:var(--r-sm);color:var(--mut);cursor:pointer;font-weight:500;text-decoration:none}
+.side a.on{background:var(--raise);color:var(--tx)}
+.frame{width:100%;border:0;min-height:calc(100vh - 150px);background:transparent}
+.f{margin-bottom:14px}.f .badge{margin-top:4px}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}.side{position:static;display:flex;flex-wrap:wrap}}
+</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page"><div class="wrap"><nav class="side" id="side"></nav><div id="view"></div></div></main>
+<script src="/i18n.js"></script>
+<script>
+const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const j = (u, b) => fetch(u, b === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json());
+let CFG = {};
+const SECTIONS = [['keys', 'Keys and services'], ['team', 'Team workflow'], ['look', 'Appearance'], ['people', 'People and voices'], ['status', 'Telegram and status'], ['more', 'Advanced']];
+const key = (id, label, on, hint) => `<div class="f"><label for="${id}">${label} ${on ? '<span class="pill ok">Connected</span>' : ''}</label><input id="${id}" type="password" autocomplete="off" placeholder="${on ? 'saved: leave empty to keep' : ''}">${hint ? `<div class="badge">${hint}</div>` : ''}</div>`;
+const save = async (body, msg) => { const r = await j('/api/projects/x/settings', body); CFG = await j('/api/settings'); if (typeof toast === 'function') toast(msg || 'Saved'); return r; };
+
+async function show() {
+  CFG = await j('/api/settings');
+  const k = (location.hash || '#keys').slice(1), sec = SECTIONS.find(s => s[0] === k) || SECTIONS[0];
+  $('#side').innerHTML = SECTIONS.map(s => `<a class="${s[0] === sec[0] ? 'on' : ''}" href="#${s[0]}">${s[1]}</a>`).join('');
+  const v = $('#view');
+  if (sec[0] === 'keys') v.innerHTML = `<div class="card"><h2>Keys and services</h2><div class="badge" style="margin-bottom:12px">Keys are stored only on this computer and are never shown again. Paid services always show the cost and ask for confirmation first.</div>
+    <h3 style="font-size:14px;margin:14px 0 8px">Stock footage (free)</h3>${key('pxk', 'Pexels API key', CFG.pexels, 'Free key from pexels.com/api')}${key('pbk', 'Pixabay API key', CFG.pixabay, 'Free key from pixabay.com/api/docs')}
+    <h3 style="font-size:14px;margin:18px 0 8px">Voice, avatars and generated clips</h3>${key('ok', 'OpenAI API key', CFG.openai, 'Text-to-speech (TTS)')}${key('elk', 'ElevenLabs API key', CFG.eleven, 'Voice generation, paid per character')}${key('hgk', 'HeyGen API key', CFG.heygen, 'Avatar videos, paid. Test mode is on by default.')}${key('xik', 'xAI API key', CFG.xai, 'Grok video clips for the gaps, paid per second')}
+    <h3 style="font-size:14px;margin:18px 0 8px">Integrations</h3>${key('ast', 'Asana Personal Access Token', CFG.asana, 'Read-only: tasks and comments')}${key('gk', 'Google API key', CFG.google, 'Optional, only needed to list Drive folders')}
+    <h3 style="font-size:14px;margin:18px 0 8px">Spending</h3>
+    <div class="f"><label for="dbl">Daily limit for paid services, USD (0 = no limit)</label><input id="dbl" type="number" min="0" value="${CFG.dailyBudgetUsd || 0}" style="max-width:140px"><div class="badge">Applies to batches started with Make all and to Grok clips. Spent today: <b>$${(CFG.spentToday || 0).toFixed(2)}</b></div></div>
+    <div class="row"><div class="f"><label for="rel">ElevenLabs, USD per 1000 characters</label><input id="rel" type="number" min="0" step="0.01" value="${CFG.rateElevenPer1k}" style="max-width:140px"></div><div class="f"><label for="rhg">HeyGen, USD per minute of video (real mode)</label><input id="rhg" type="number" min="0" step="0.1" value="${CFG.rateHeygenPerMin}" style="max-width:140px"></div></div>
+    <div class="badge" style="margin-bottom:8px">ElevenLabs and HeyGen prices depend on your plan: set the rates from your plan, and the figures in the cost windows follow them. Grok prices are known.</div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px"><button onclick="saveKeys()">Save</button></div></div>`;
+  else if (sec[0] === 'team') {
+    const w = await j('/api/asana/watch').catch(() => ({}));
+    v.innerHTML = `<div class="card"><h2>Team workflow</h2>
+      <h3 style="font-size:14px;margin:6px 0 8px">Comments from buyers in Asana</h3>
+      <div class="badge" style="margin-bottom:10px">The platform reads the comments of the tasks you imported and sends a notice (bell and Telegram) when a buyer writes. A buyer is the person who created the task, plus the names you add here. Nothing is ever written to Asana, and a comment never changes a status by itself.</div>
+      <label class="chk"><input type="checkbox" id="aw" ${CFG.asanaWatch ? 'checked' : ''}> Watch the comments${CFG.asana ? '' : ' (add the Asana token first)'}</label>
+      <div class="f" style="margin-top:12px"><label for="ab">More buyers (names as in Asana, separated by commas)</label><input id="ab" value="${esc(CFG.asanaBuyers)}" placeholder="BAN Buyer, Anna K"><div class="badge">The task creator is a buyer automatically.</div></div>
+      <div class="f"><label for="at">Our team (their comments are ignored)</label><input id="at" value="${esc(CFG.asanaTeam)}" placeholder="Our Editor, Maria"><div class="badge">The owner of the Asana token is already ignored.</div></div>
+      <div class="row" style="align-items:center;gap:10px"><button class="sec" onclick="checkNow()">Check now</button><span class="badge" id="wst">${w.at ? 'Last check: ' + new Date(w.at).toLocaleTimeString() + (w.error ? ' · ' + esc(w.error) : ' · ' + w.found + ' new') : 'Checks every 3 minutes.'}</span></div>
+      <h3 style="font-size:14px;margin:22px 0 8px">Approval</h3>
+      <div class="f"><label for="ad">Approve a creative automatically after N days without edits (0 = off)</label><input id="ad" type="number" min="0" max="60" value="${CFG.autoApproveDays || 0}" style="max-width:120px"><div class="badge">Counted from the moment the creative is handed over. A new comment from a buyer starts the count again. You can always approve by hand.</div></div>
+      <h3 style="font-size:14px;margin:22px 0 8px">Links in messages</h3>
+      <div class="f"><label for="pu">Address of this site (for links in Telegram)</label><input id="pu" value="${esc(CFG.publicUrl)}" placeholder="http://localhost:4317"><div class="badge">Set it when the platform runs on a server.</div></div>
+      <div class="row" style="justify-content:flex-end"><button onclick="saveTeam()">Save</button></div></div>`;
+  }
+  else if (sec[0] === 'look') {
+    const th = VSTheme.theme(), ac = VSTheme.accent(), sw = { orchid: '#ee7fc3', cyan: '#4cc9f0', amber: '#fbbf24', coral: '#ff8a75', violet: '#7b93ff' };
+    v.innerHTML = `<div class="card"><h2>Appearance</h2><div class="badge" style="margin-bottom:12px">Saved in this browser: everyone on the team can choose their own.</div>
+      <label>Theme</label><div class="row" style="gap:8px;flex-wrap:nowrap">${[['dark', 'Dark'], ['light', 'Light'], ['auto', 'Like my system']].map(([k, l]) => `<button class="${th === k ? '' : 'sec'}" style="flex:1" onclick="VSTheme.setTheme('${k}');show()">${l}</button>`).join('')}</div>
+      <label style="margin-top:18px">Accent colour</label><div class="row" style="gap:10px;flex-wrap:wrap">${Object.entries(VSTheme.ACCENTS).map(([k, l]) => `<button class="sec" title="${l}" onclick="VSTheme.setAccent('${k}');show()" style="flex:none;min-width:96px;gap:8px;${ac === k ? 'border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-ring)' : ''}"><i style="width:14px;height:14px;border-radius:50%;background:${sw[k]};display:inline-block"></i>${l}</button>`).join('')}</div>
+      <div class="badge" style="margin-top:14px">The accent is used for the main buttons, the current step and links.</div></div>`;
+  }
+  else if (sec[0] === 'people') v.innerHTML = '<iframe class="frame" src="/speakers.html" title="People and voices"></iframe>';
+  else if (sec[0] === 'status') v.innerHTML = '<iframe class="frame" src="/status.html" title="Telegram and status"></iframe>';
+  else v.innerHTML = `<div class="card"><h2>Advanced</h2>
+      <div class="f"><label for="dfi">DreamFace inbox folder</label><input id="dfi" value="${esc(CFG.dreamfaceInbox)}"><div class="badge">Finished DreamFace videos are picked up from here. Empty = default folder.</div></div>
+      <label class="chk"><input type="checkbox" id="msp" ${CFG.multiSpeaker ? 'checked' : ''}> Several speakers in one video (recorded separately)</label><div class="badge">Shows the segment tools in a project. Off by default.</div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px"><button onclick="saveMore()">Save</button></div></div>`;
+}
+async function saveKeys() { await save({ openaiKey: $('#ok').value, pexelsKey: $('#pxk').value, pixabayKey: $('#pbk').value, asanaToken: $('#ast').value, elevenKey: $('#elk').value, heygenKey: $('#hgk').value, xaiKey: $('#xik').value, googleKey: $('#gk').value, dailyBudgetUsd: +$('#dbl').value || 0, rateElevenPer1k: +$('#rel').value || 0, rateHeygenPerMin: +$('#rhg').value || 0 }); show(); }
+async function saveTeam() { await save({ asanaWatch: $('#aw').checked, asanaBuyers: $('#ab').value, asanaTeam: $('#at').value, autoApproveDays: +$('#ad').value || 0, publicUrl: $('#pu').value.trim() }); show(); }
+async function saveMore() { await save({ dreamfaceInbox: $('#dfi').value.trim(), multiSpeaker: $('#msp').checked }); }
+async function checkNow() { $('#wst').textContent = 'Checking…'; const r = await j('/api/asana/check-now', {}); $('#wst').textContent = r.skipped ? 'Not checked: add the Asana token and turn the watching on.' : r.error ? r.error : (r.found ? r.found + ' new comment(s): see the bell.' : 'No new comments.'); }
+window.addEventListener('hashchange', show); show();
+</script></body></html>

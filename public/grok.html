@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Grok</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>textarea{min-height:64px}.item{border-top:1px solid var(--line);padding:14px 0}.drop{border:2px dashed var(--line2);border-radius:12px;padding:16px;text-align:center;color:var(--mut);margin-top:10px}.drop.over{border-color:var(--ac);color:var(--tx);background:var(--ac-soft)}.done{color:var(--ok)}.bad{color:var(--bad,#d33)}.tab{cursor:pointer}.sel{margin-right:8px}</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<div class="card"><label>Project</label><select id="proj" onchange="load()"></select>
+<label>Style added to every Grok prompt (saved for this niche)</label><textarea id="style" onchange="saveStyle()"></textarea></div>
+
+<div class="card"><b>Option 1 · You generate in Grok, the platform places the files</b>
+<ol style="margin:8px 0 0 18px;color:var(--mut)"><li>Copy a prompt from the list below and generate the clip in Grok yourself.</li><li>Save it as <code>scene_07.mp4</code> (the number from the list) or <code>hook.mp4</code> for the opening.</li><li>Drop all files here at once: each one is added to the niche library and placed on its moment.</li></ol>
+<div class="drop" id="bulk" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="bulkDrop(event)">Drop many clips here, or <label style="display:inline;color:var(--ac);cursor:pointer">choose files<input type="file" accept="video/*" multiple hidden onchange="bulkUp(this.files)"></label></div>
+<div id="bres" class="badge" style="margin-top:8px"></div></div>
+
+<div class="card" id="apiCard"><b>Option 2 · The platform generates through the xAI API</b> <span class="badge" id="keyBadge"></span>
+<div class="badge">Paid, per second of video. Only moments without a fitting clip are generated. You see the cost first and confirm it separately.</div>
+<div class="row" style="margin-top:8px"><label style="margin:0">Quality</label><select id="res"><option value="480p">480p</option><option value="720p" selected>720p</option><option value="1080p">1080p</option></select><button onclick="preview()" id="pvBtn">Check cost</button></div>
+<div id="pv" style="margin-top:10px"></div><div id="st" style="margin-top:10px"></div></div>
+
+<div class="card"><b id="count"></b> <span class="badge" id="cnote"></span><div id="list"></div></div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $=s=>document.querySelector(s);let PJ=null,DATA=null,PV=null,TM=null;
+const j=(u,b)=>fetch(u,b===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json());
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function init(){const l=await j('/api/projects');$('#proj').innerHTML=l.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');load()}
+async function load(){const id=$('#proj').value;if(!id)return;PJ=id;PV=null;$('#pv').innerHTML='';DATA=await j('/api/projects/'+id+'/grok/prompts');$('#style').value=DATA.style;
+ $('#keyBadge').textContent=DATA.hasKey?'key is set':'no key: add it in Settings';$('#pvBtn').disabled=!DATA.hasKey;draw();status(DATA.state)}
+function draw(){const it=DATA.hook?[DATA.hook,...DATA.items]:DATA.items;$('#count').textContent=it.length?it.length+' moment(s) without a fitting clip':'Every moment has a fitting clip (or the project has not been analyzed yet).';
+ $('#cnote').textContent=it.length?'Tick the ones to generate in option 2 (at most '+DATA.max+' at a time).':'';
+ $('#list').innerHTML=it.map((x,k)=>`<div class="item" id="it${x.i}"><div class="row"><label class="sel"><input type="checkbox" class="pick" value="${x.i}"${k<DATA.max&&!x.set?' checked':''}></label><b>${x.hook?'Opening (hook)':'Scene '+x.scene}</b><span class="badge">${x.start.toFixed(1)}–${x.end.toFixed(1)} s · ${x.seconds} s clip · ${esc(x.status)}${x.sim!=null?' · '+Math.round(x.sim*100)+'% match':''}</span></div>
+ <div class="badge" style="margin:4px 0">“${esc(x.text)}”</div><textarea readonly onclick="this.select()">${esc(x.prompt)}</textarea>
+ <div class="row" style="margin-top:6px"><button class="sec" onclick="copy(${k})">Copy prompt</button><span class="badge">File name: ${x.hook?'hook.mp4':'scene_'+String(x.scene).padStart(2,'0')+'.mp4'}</span></div></div>`).join('')}
+async function copy(k){const it=DATA.hook?[DATA.hook,...DATA.items]:DATA.items;await navigator.clipboard.writeText(it[k].prompt)}
+function bulkDrop(e){e.preventDefault();e.currentTarget.classList.remove('over');bulkUp(e.dataTransfer.files)}
+async function bulkUp(files){if(!files||!files.length)return;$('#bres').textContent='Uploading '+files.length+' file(s)…';const fd=new FormData();for(const f of files)fd.append('files',f);
+ const r=await (await fetch('/api/projects/'+PJ+'/grok/bulk',{method:'POST',body:fd})).json();if(r.error){$('#bres').innerHTML='<span class="bad">'+esc(r.error)+'</span>';return}
+ $('#bres').innerHTML=r.results.map(x=>`<div>${x.status==='placed'?'<span class="done">✓</span>':'•'} ${esc(x.file)} ${x.status==='placed'?(x.hook?'→ opening (hook)':'→ scene '+x.scene):'· '+esc(x.note)}</div>`).join('');load()}
+async function saveStyle(){await j('/api/niches/'+DATA.niche,{defaults:{grokStyle:$('#style').value}});await load()}
+async function preview(){const items=[...document.querySelectorAll('.pick:checked')].map(c=>+c.value);const r=await j('/api/projects/'+PJ+'/grok/preview',{items,res:$('#res').value});
+ if(r.error){$('#pv').innerHTML='<span class="bad">'+esc(r.error)+'</span>';return}PV=r;
+ $('#pv').innerHTML=`<div><b>${r.items.length} clip(s) · ${r.totalSeconds} s · about $${r.estUsd.toFixed(2)}</b> <span class="badge">${r.res} at about $${r.rate.toFixed(2)} per second. This is an estimate: the real price is on your xAI account.</span></div>${r.capped?'<div class="badge">Only the first '+r.max+' moments are included.</div>':''}
+ <div class="row" style="margin-top:8px"><button onclick="gen(true)" class="sec">Test: generate only the first clip</button><button onclick="gen(false)">Confirm and generate all ${r.items.length} (about $${r.estUsd.toFixed(2)})</button></div>`}
+async function gen(test){if(!PV)return;const r=await j('/api/projects/'+PJ+'/grok/generate',{token:PV.token,test});PV=null;if(r.error){$('#pv').innerHTML='<span class="bad">'+esc(r.error)+'</span>';return}$('#pv').innerHTML='';poll()}
+function poll(){clearTimeout(TM);j('/api/projects/'+PJ+'/grok/status').then(s=>{status(s);if(s&&s.status==='running')TM=setTimeout(poll,3000);else if(s)load()})}
+function status(s){if(!s){$('#st').innerHTML='';return}const L={pending:'waiting',running:'generating…',done:'✓ placed',failed:'failed'};
+ $('#st').innerHTML=`<b>${s.status==='running'?'Generating…':'Last run'}</b> <span class="badge">${s.done||0} of ${s.total} done${s.failed?' · '+s.failed+' failed':''} · about $${(s.estUsd||0).toFixed(2)}</span>`+s.items.map(x=>`<div class="badge">${x.scene===0?'Opening (hook)':'Scene '+x.scene}: ${x.status==='failed'?'<span class="bad">'+esc(x.error||'failed')+'</span>':L[x.status]}${x.note?' · '+esc(x.note):''}</div>`).join('');
+ if(s.status==='running'&&!TM)poll()}
+init();
+</script></body></html>

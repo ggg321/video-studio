@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Flow intake</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>textarea{min-height:64px}.item{border-top:1px solid var(--line);padding:14px 0}.drop{border:2px dashed var(--line2);border-radius:12px;padding:16px;text-align:center;color:var(--mut);margin-top:10px}.drop.over{border-color:var(--ac);color:var(--tx);background:var(--ac-soft)}.done{color:var(--ok)}</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<div class="card"><b>How it works</b>
+<ol style="margin:8px 0 0 18px;color:var(--mut)"><li>Choose a project that has been analyzed. Below are the moments that have no fitting clip, each with a ready prompt.</li><li>Copy a prompt, generate the clip in Flow (or any video generator), download it.</li><li>Drop the file onto that moment. It is added to the niche library and placed on that moment right away.</li></ol>
+<div class="row" style="margin-top:12px"><a class="btn" href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener">Open Flow ↗</a><span class="badge">You generate in your own Flow account. The platform never logs in or automates Flow.</span></div></div>
+<div class="card"><label>Project</label><select id="proj" onchange="load()"></select>
+<label>Style added to every prompt (saved for this niche)</label><textarea id="style" onchange="saveStyle()"></textarea></div>
+<div class="card"><b>Inbox folder</b> <span class="badge">(optional bulk intake)</span>
+<div class="badge">Video files that appear in this folder are copied into the niche library automatically (checked every 15 s). Point it at your Flow download folder, or use the default.</div>
+<div class="row"><input id="inbox" placeholder="Folder path"><button class="sec" onclick="saveInbox()">Save</button><button class="sec" onclick="scan()">Import now</button></div><div class="badge" id="imsg"></div></div>
+<div class="card"><b id="count"></b><div id="list"></div></div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $=s=>document.querySelector(s);let PJ=null,DATA=null;
+const j=(u,b)=>fetch(u,b===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json());
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function init(){const l=await j('/api/projects');$('#proj').innerHTML=l.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');load()}
+async function load(){const id=$('#proj').value;if(!id)return;PJ=id;DATA=await j('/api/projects/'+id+'/flow/prompts');$('#style').value=DATA.style;$('#inbox').value=DATA.inbox;draw()}
+function draw(){const it=DATA.items;$('#count').textContent=it.length?it.length+' moment(s) without a fitting clip':'Every moment has a fitting clip (or the project has not been analyzed yet).';
+ $('#list').innerHTML=it.map((x,k)=>`<div class="item" id="it${x.i}"><div class="row"><b>${x.start.toFixed(1)}–${x.end.toFixed(1)} s</b><span class="badge">${esc(x.status)}${x.sim!=null?' · '+Math.round(x.sim*100)+'% match':''}</span></div>
+ <div class="badge" style="margin:4px 0">“${esc(x.text)}”</div><textarea readonly onclick="this.select()">${esc(x.prompt)}</textarea>
+ <div class="row" style="margin-top:6px"><button class="sec" onclick="copy(${k})">Copy prompt</button></div>
+ <div class="drop" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="drop(event,${k})">Drop the generated clip here, or <label style="display:inline;color:var(--ac);cursor:pointer">choose a file<input type="file" accept="video/*" hidden onchange="up(${k},this.files[0])"></label></div></div>`).join('')}
+async function copy(k){await navigator.clipboard.writeText(DATA.items[k].prompt)}
+function drop(e,k){e.preventDefault();e.currentTarget.classList.remove('over');const f=e.dataTransfer.files[0];if(f)up(k,f)}
+async function up(k,f){if(!f)return;const x=DATA.items[k];const box=document.querySelector('#it'+x.i+' .drop');box.textContent='Uploading…';const fd=new FormData();fd.append('i',x.i);fd.append('file',f);const r=await (await fetch('/api/projects/'+PJ+'/flow/attach',{method:'POST',body:fd})).json();
+ if(r.error){box.textContent=r.error;return}box.innerHTML='<span class="done">✓ Added to the library and placed on this moment</span>'}
+async function saveStyle(){await j('/api/niches/'+DATA.niche,{defaults:{promptStyle:$('#style').value}});await load()}
+async function saveInbox(){await j('/api/niches/'+DATA.niche,{defaults:{inbox:$('#inbox').value.trim()}});$('#imsg').textContent='Saved.'}
+async function scan(){const r=await j('/api/niches/'+DATA.niche+'/scan',{});$('#imsg').textContent=r.added+' clip(s) imported.'}
+init();
+</script></body></html>

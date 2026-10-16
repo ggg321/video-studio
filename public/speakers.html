@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Speakers</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>.dot{width:12px;height:12px;margin-right:6px;vertical-align:middle}video{max-width:160px}input[type=color]{width:60px}</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<div class="card"><div class="row"><b>Speakers</b><button onclick="addSpeaker()">+ New speaker</button></div>
+<p class="badge">People who appear or whose voice is used in your videos. Saved once and reused in every project.</p></div>
+<div id="list"></div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $=s=>document.querySelector(s);const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const j=(u,b)=>fetch(u,b===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json());
+let L=[],CFGS={},VOICES=[],AVATARS=[];
+async function load(){CFGS=await j('/api/settings');L=await j('/api/speakers');if(CFGS.eleven&&!VOICES.length){const r=await j('/api/eleven/voices');VOICES=r.voices||[]}if(CFGS.heygen&&!AVATARS.length){const r=await j('/api/heygen/avatars');AVATARS=r.avatars||[]}draw()}
+function pickVoice(id,sel){save(id,{elevenVoiceId:sel.value,elevenVoiceName:sel.selectedOptions[0].dataset.name||''})}
+function draw(){$('#list').innerHTML=L.map(s=>`<div class="card" id="s_${s.id}">
+ <div class="row"><div><label>Name</label><input value="${esc(s.name)}" onchange="save('${s.id}',{name:this.value})"></div><div style="flex:0 0 80px"><label>Colour</label><input type="color" value="${s.color||'#ff3b30'}" onchange="save('${s.id}',{color:this.value})"></div></div>
+ <div class="row" style="margin-top:8px;align-items:flex-start"><div><label>Default video (used when a segment has only a voice)</label>${s.videoFile?`<video src="/speaker-files/${s.videoFile}" controls muted></video>`:'<div class="badge">none</div>'}
+  <label class="btn" style="display:inline-block;background:#2a2f3a;color:#fff;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;margin-top:6px">Upload video<input type="file" accept="video/*" hidden onchange="upVideo('${s.id}',this.files[0])"></label></div>
+  ${CFGS.eleven?`<div><label>ElevenLabs voice</label><select onchange="pickVoice('${s.id}',this)"><option value="">— none —</option>${VOICES.map(v=>`<option value="${v.id}" data-name="${esc(v.name)}" ${v.id===s.elevenVoiceId?'selected':''}>${esc(v.name)}</option>`).join('')}</select></div>`:''}${CFGS.heygen?`<div><label>HeyGen avatar</label><select onchange="save('${s.id}',{heygenAvatarId:this.value})"><option value="">— none —</option>${AVATARS.map(a=>`<option value="${a.id}" ${a.id===s.heygenAvatarId?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>`:''}<div><label>TTS voice name (optional, for generated voice)</label><input value="${esc(s.ttsVoice)}" placeholder="e.g. onyx" onchange="save('${s.id}',{ttsVoice:this.value})"><label>Notes</label><textarea rows="2" onchange="save('${s.id}',{notes:this.value})">${esc(s.notes)}</textarea></div></div>
+ <div class="row" style="margin-top:10px"><span class="badge" id="m_${s.id}"></span><button class="sec" onclick="del('${s.id}')">Delete speaker</button></div></div>`).join('')||'<div class="card badge">No speakers yet.</div>'}
+async function addSpeaker(){const n=await uiPrompt('Speaker name?');if(!n)return;await j('/api/speakers',{name:n});load()}
+async function save(id,p){await j('/api/speakers',{id,...p});const m=$('#m_'+id);if(m)m.textContent='Saved.'}
+async function upVideo(id,f){if(!f)return;const fd=new FormData();fd.append('video',f);$('#m_'+id).textContent='Uploading…';await fetch('/api/speakers/'+id+'/video',{method:'POST',body:fd});load()}
+async function del(id){if(!await uiConfirm('Delete this speaker? Projects that used them keep working but lose the link.','Delete',true))return;await j('/api/speakers/'+id+'/delete',{});load()}
+load();
+</script></body></html>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Video Studio</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="split"><aside><button class="lg" style="width:100%" onclick="newProject()">+ New project</button><input class="search" id="q" placeholder="Search projects" oninput="list()" aria-label="Search projects"><div id="list"></div></aside>
+<section id="view"><div class="empty"><b>Pick or create a project</b>Each project is one video: script, voice, inserts, sound, style, render.</div></section></main>
+<dialog id="dlg"></dialog>
+<script src="/i18n.js"></script>
+<script src="/preview.js"></script>
+<script src="/qc.js"></script>
+<script src="/timeline.js"></script>
+<script src="/segments.js"></script>
+<script src="/creative.js"></script>
+<script src="/steps.js"></script>
+<script src="/voice.js"></script>
+<script src="/dreamface.js"></script>
+<script src="/recovery.js"></script>
+<script src="/learn.js"></script>
+<script>
+const $=s=>document.querySelector(s);let P=null,FONTS=[],NICHES=[],LIB=[],AUD=[],STY=[],HFC=[],CFG={},timer=null;
+const api=(u,b,m)=>fetch(u,b===undefined?{}:{method:m||'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json());
+async function init(){FONTS=await api('/api/fonts');document.head.insertAdjacentHTML('beforeend','<style>'+FONTS.map(f=>`@font-face{font-family:"${f.label}";src:url(/fontfiles/${f.file})}`).join('')+'</style>');NICHES=await api('/api/niches');LIB=await api('/api/library');AUD=await api('/api/audio');STY=await api('/api/styles');HFC=await api('/api/hfcaps');CFG=await api('/api/settings');FMT=await api('/api/formats');applyHeader();list();}
+async function list(){const l=await api('/api/projects');const q=(($('#q')||{}).value||'').toLowerCase().trim();const dot=p=>p.hasVideo||p.status=='done'?'done':p.status=='error'?'err':['analyzing','rendering','queued'].includes(p.status)?'busy':p.status=='planned'?'plan':'';$('#list').innerHTML=l.filter(p=>!q||String(p.name).toLowerCase().includes(q)).map(p=>`<div class="it ${P&&P.id==p.id?'on':''}" onclick="open_('${p.id}')"><span>${esc(p.name)}</span><span class="badge" title="${esc(p.status)}"><i class="dot ${dot(p)}"></i></span></div>`).join('')||'<div class="badge" style="padding:10px">No projects yet.</div>'}
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function newProject(){const n=await uiPrompt('Project name?');if(!n)return;const p=await api('/api/projects',{name:n});await list();open_(p.id)}
+async function open_(id){segReset();document.body.classList.remove('aside-open');P=await api('/api/projects/'+id);STEP=defaultStep();LIB=await api('/api/library?niche='+(P.niche||'weight-loss')+'&project='+id);list();draw();poll()}
+function poll(){clearInterval(timer);if(['analyzing','rendering','queued'].includes(P.status))timer=setInterval(async()=>{P=await api('/api/projects/'+P.id);if(!['analyzing','rendering','queued'].includes(P.status)){clearInterval(timer);list();draw()}else{const b=$('#pb');if(b)b.style.width=(P.progress*100)+'%'}},1500)}
+function draw(){draw0();if(window.initPreview)initPreview();if(window.initTimeline)initTimeline()}
+function audioCard(){
+ const A=P.audio||{music:null,musicVol:.18,sfx:[]};const sf=AUD.filter(a=>a.cat!='music'),mu=AUD.filter(a=>a.cat=='music');
+ const opts=sel=>sf.map(a=>`<option value="${a.id}" ${a.id==sel?'selected':''}>${a.cat} · ${a.label}</option>`).join('');
+ const rows=(A.sfx||[]).map((e,i)=>`<div class="cut" style="grid-template-columns:90px 1fr 110px 70px 32px"><input value="${e.t}" onchange="setS(${i},'t',+this.value)"><div><select onchange="setS(${i},'id',this.value)">${opts(e.id)}</select>${e.src==='tr'?'<span class="badge">Transition sound</span>':''}</div><input type="range" min="0" max="1" step="0.05" value="${e.vol}" onchange="setS(${i},'vol',+this.value)"><button class="sec" style="padding:4px 8px" onclick="playS('${e.id}')">▶</button><button class="sec" style="padding:4px 8px" onclick="delS(${i})">✕</button></div>`).join('');
+ return `<div class="card"><h2>Sound</h2><div class="row" style="margin-bottom:8px"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" style="width:auto" ${A.musicOn!==false?'checked':''} onchange="setA('musicOn',this.checked)"> Background music</label><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" style="width:auto" ${A.sfxOn!==false?'checked':''} onchange="setA('sfxOn',this.checked)"> Sound effects (SFX)</label><label style="display:flex;gap:8px;align-items:center" title="Rebuilds the automatic sounds"><input type="checkbox" style="width:auto" ${A.transSfx!==false?'checked':''} onchange="trSfx(this.checked)"> Sounds for transitions</label></div><div class="row"><div><label>Music</label><select onchange="setA('music',this.value||null)"><option value="">— none —</option>${mu.map(a=>`<option value="${a.id}" ${a.id==A.music?'selected':''}>${a.label}</option>`).join('')}</select></div><div><label>Music volume (${Math.round((A.musicVol??.18)*100)}%)</label><input type="range" min="0" max="0.6" step="0.01" value="${A.musicVol??.18}" onchange="setA('musicVol',+this.value)"></div></div><p class="badge">Music is automatically lowered under the voice. SFX are placed on inserts/cards and zoom moments; edit or add your own.</p><div class="row" style="margin-bottom:8px"><button class="sec" onclick="musicSuggest()">♪ Suggest music for this script</button>${P.reference ? '<button class="sec" onclick="musicLike()">♪ Music like the sample</button>' : ''}</div>${musugHtml()}${muslikeHtml()}${rows}<div class="row" style="margin-top:10px"><button class="sec" onclick="addS()">+ Add SFX</button>${(A.sfx||[]).some(e=>e.src==='tr')?'<button class="sec" onclick="delTrSfx()">Remove transition sounds</button>':''}<select style="max-width:200px" onchange="autoS(this.value)" title="Auto-SFX style">${[['standard','Auto-SFX: Standard'],['soft','Auto-SFX: Soft'],['punchy','Auto-SFX: Punchy'],['clean','Auto-SFX: Clean']].map(([v,l])=>`<option value="${v}" ${(A.sfxStyle||'standard')==v?'selected':''}>${l}</option>`).join('')}</select><button class="sec" onclick="autoS()">↻ Auto-SFX again</button></div></div>`}
+async function trSfx(on){P.audio=P.audio||{music:null,musicVol:.18,sfx:[]};P.audio.transSfx=on;await saveA();await autoS()}
+function delTrSfx(){P.audio.sfx=(P.audio.sfx||[]).filter(e=>e.src!=='tr');saveA().then(draw)}
+function saveA(){return api('/api/projects/'+P.id+'/audio',P.audio)}
+function setA(k,v){P.audio=P.audio||{music:null,musicVol:.18,sfx:[]};P.audio[k]=v;saveA().then(draw)}
+function setS(i,k,v){P.audio.sfx[i][k]=v;saveA()}
+function delS(i){P.audio.sfx.splice(i,1);saveA().then(draw)}
+function addS(){P.audio=P.audio||{music:null,musicVol:.18,sfx:[]};P.audio.sfx.push({t:1,id:'pop_1',vol:.5});saveA().then(draw)}
+async function autoS(style){P.audio=await api('/api/projects/'+P.id+'/autosfx',style?{style}:{});draw()}
+function playS(id){const a=AUD.find(x=>x.id==id);new Audio('/audio/'+(a&&a.cat=='music'?'music':'sfx')+'/'+id+'.wav').play()}
+function cutRow(c,i){const cl=LIB.find(x=>x.id==c.clip)||{};const card=c.clip=='card',stk=c.clip=='stock';return `<div class="cut">${stk?`<div style="width:96px;height:96px;border-radius:8px;background:#1f6feb;display:grid;place-items:center;font-size:11px;text-align:center;padding:4px" onclick="stockDlg(${i})">STOCK<br>${esc(c.src)}</div>`:card?`<div style="width:96px;height:96px;border-radius:8px;background:#e0001a;display:grid;place-items:center;font-weight:700;font-size:11px;text-align:center;padding:4px" onclick="pickClip(${i})">CARD<br>${esc(c.card)}</div>`:`<img src="${(cl.thumb||'')}" onclick="pickClip(${i})" title="Swap insert">`}<div><small>${esc(c.text)}</small>${card?`<br><input value="${esc(c.card)}" onchange="P.cuts[${i}].card=this.value;saveCuts()">`:''}<br><span class="badge">${c.hook?'<b style="color:#d4a017">HOOK</b> · ':''}${c.sim?'<b>'+Math.round(c.sim*100)+'% match</b> · ':''}${c.bad?'<b style="color:#e5484d">⚠ lipsync: '+esc(c.bad)+'</b> · ':''}${cl.fromName?'<b>from '+esc(cl.fromName)+'</b> · ':''}${cl.tags?cl.tags.slice(0,5).join(' · '):''}${cl.watermark?' · ⚠ watermark':''}</span>${c.hook?'':'<br>'+cutTrnSelect(i)}</div><div class="row" style="gap:4px"><input value="${c.start}" onchange="setCut(${i},'start',this.value)"><input value="${c.end}" onchange="setCut(${i},'end',this.value)"></div><div style="display:grid;gap:4px"><button class="sec" style="padding:4px 8px" onclick="stockDlg(${i})" title="Search stock video">🔎</button><button class="sec" style="padding:4px 8px" onclick="delCut(${i})">✕</button></div></div>`}
+async function setHF(v){P.hfCaption=v;await api('/api/projects/'+P.id+'/hfcaption',{id:v});draw()}
+async function setP(k,v){P[k]=v;const r=await api('/api/projects/'+P.id,{[k]:v});if(k=='subStyle'&&r.band)P.band=r.band;draw();if((k=='transition')&&P.audio&&(P.audio.sfx||[]).length&&P.audio.transSfx!==false)toast('Transition changed. Press “Auto-SFX again” on the Sound step to update the transition sounds.',7000)}
+async function saveMeta(){P=Object.assign(P,await api('/api/projects/'+P.id,{name:$('#name').value,script:$('#script').value,format:$('#format')?.value,clips:$('#clips')?.checked}));list()}
+async function upload(){await saveMeta();const fd=new FormData();if($('#fv').files[0])fd.append('presenter',$('#fv').files[0]);if($('#fa').files[0])fd.append('voice',$('#fa').files[0]);const r=await fetch('/api/projects/'+P.id+'/media',{method:'POST',body:fd});P=Object.assign(P,await r.json());draw()}
+async function tts(){await saveMeta();const r=await api('/api/projects/'+P.id+'/tts',{});if(r.error)alert(r.error);else{P=Object.assign(P,r);draw()}}
+async function analyze(){await saveMeta();const r=await api('/api/projects/'+P.id+'/analyze',{});if(r.error){alert(r.error);return}P.status='analyzing';P.progress=.05;draw();poll()}
+async function renderIt(){await saveCuts();await api('/api/projects/'+P.id+'/render',{format:$('#format').value});P.status='rendering';P.progress=0;draw();poll()}
+async function coverMarks(){const r=await api('/api/projects/'+P.id+'/cover',{marks:$('#marks').value});if(r.error){alert(r.error);return}P.cuts=r.cuts;P.lipsync=r.lipsync;draw()}
+async function autoStock(){const r=await api('/api/projects/'+P.id+'/autostock',{});if(r.error)alert(r.error+(r.replaced?' ('+r.replaced+' vervangen)':''));else{P.cuts=r.cuts;alert(r.replaced+' cards replaced with stock video');draw()}}
+async function stockDlg(i){const c=P.cuts[i];const q=c.card||(c.text||'').split(' ').slice(0,3).join(' ');const d=$('#dlg');d.innerHTML='<h3>Search stock video</h3><div class="row"><input id="sq" value="'+esc(q)+'"><button onclick="stockGo('+i+')">Search</button></div><div id="sres" class="grid" style="margin-top:12px"></div><p><button class="sec" onclick="closeDlg()">Close</button></p>';d.showModal();stockGo(i)}
+function closeDlg(){$('#dlg').close()}
+async function stockGo(i){const vert=(P.format||'').startsWith('vertical');const r=await api('/api/stock/search?q='+encodeURIComponent($('#sq').value)+'&portrait='+(vert?1:0),undefined);if(r.error){$('#sres').innerHTML='<p class="err">'+esc(r.error)+'</p>';return}window._sr=r;$('#sres').innerHTML=r.map((x,k)=>'<img src="'+x.thumb+'" title="'+x.source+' '+x.dur+'s" onclick="stockUse('+i+','+k+')">').join('')||'<p>No results</p>'}
+async function stockUse(i,k){const r=await api('/api/projects/'+P.id+'/stock/use',{i,item:window._sr[k]});P.cuts[i]=r;$('#dlg').close();draw()}
+function saveCuts(){return api('/api/projects/'+P.id+'/cuts',{cuts:P.cuts})}
+function setCut(i,k,v){P.cuts[i][k]=+v;saveCuts()}
+function addCut(){const t=P.cuts.length?P.cuts[P.cuts.length-1].end+1:2;P.cuts.push({start:t,end:t+3,clip:'c02',text:''});saveCuts();draw()}
+async function settings(){const d=$('#dlg');
+ const key=(id,label,on,hint,ph)=>`<label for="${id}">${label} ${on?'<span class="pill ok">Connected</span>':''}</label><input id="${id}" type="password" autocomplete="off" placeholder="${on?'saved — leave empty to keep':(ph||'')}">${hint?`<div class="badge" style="margin-top:4px">${hint}</div>`:''}`;
+ d.innerHTML=`<h3>Settings</h3><div class="badge" style="margin-bottom:6px">Keys are stored only on this computer and are never shown again.</div>
+ <div style="max-height:62vh;overflow:auto;padding-right:6px">
+ <h3 style="margin-top:18px;font-size:14px">Stock footage (free)</h3>
+ ${key('pxk','Pexels API key',CFG.pexels,'Free key from pexels.com/api')}${key('pbk','Pixabay API key',CFG.pixabay,'Free key from pixabay.com/api/docs')}
+ <h3 style="margin-top:22px;font-size:14px">Voice and avatars</h3>
+ ${key('ok','OpenAI API key',CFG.openai,'Used for text-to-speech (TTS)','sk-...')}${key('elk','ElevenLabs API key',CFG.eleven,'Voice generation, paid per character. Always asks for confirmation first.')}${key('hgk','HeyGen API key',CFG.heygen,'Avatar videos, paid. Test mode is on by default.')}${key('xik','xAI API key',CFG.xai,'Grok video clips for the gaps, paid per second. Always shows the cost and asks for confirmation first.')}
+ <h3 style="margin-top:22px;font-size:14px">Integrations</h3>
+ ${key('ast','Asana Personal Access Token',CFG.asana,'Read-only import of tasks')}${key('gk','Google API key',CFG.google,'Optional, only needed to list Drive folders')}
+ <label for="dfi">DreamFace inbox folder</label><input id="dfi" placeholder="${CFG.dreamfaceInbox||''}" value="${CFG.dreamfaceInbox||''}"><div class="badge" style="margin-top:4px">Finished videos are picked up from here. Empty = default folder.</div>
+ <h3 style="margin-top:22px;font-size:14px">Advanced</h3>
+ <label class="chk" style="margin-top:8px"><input type="checkbox" id="msp" ${CFG.multiSpeaker?'checked':''}> Multi-speaker mode (several speakers per video, Speakers page)</label><div class="badge">Off by default. Turn on only if a video has several speakers or is assembled from separate recordings.</div>
+ </div><div class="row mid" style="margin-top:20px;justify-content:flex-end;gap:10px"><button class="sec" onclick="$('#dlg').close()">Close</button><button onclick="saveKey()">Save</button></div>`;d.showModal()}
+async function saveKey(){await api('/api/projects/x/settings',{openaiKey:$('#ok').value,pexelsKey:$('#pxk').value,pixabayKey:$('#pbk').value,asanaToken:$('#ast').value,dreamfaceInbox:$('#dfi').value.trim(),elevenKey:$('#elk').value,heygenKey:$('#hgk').value,xaiKey:$('#xik').value,googleKey:$('#gk').value,multiSpeaker:$('#msp').checked});CFG=await api('/api/settings');applyHeader();applyHeader();$('#dlg').close();if(P)draw()}
+function applyHeader(){const a=document.getElementById('spkLink');if(a)a.style.display=CFG.multiSpeaker?'':'none'}
+init().then(() => { if (location.hash.length > 1) open_(location.hash.slice(1)); if (/[?&]settings=1/.test(location.search)) settings(); recoveryCheck(); });
+</script></body></html>

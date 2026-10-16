@@ -1,0 +1,35 @@
+# ---- secrets and personal data: never in the repository ----
+data/*
+!data/addi18n.js
+.env
+*.key
+
+# ---- the work of the platform (big, personal, or can be rebuilt) ----
+projects/
+library/
+exports/
+backups/
+fonts/
+assets/
+.venv/
+node_modules/
+.claude/
+tools/realesrgan/
+tools/whisper/
+sheet2.png
+
+# ---- Remotion and HyperFrames: only our own files ----
+remotion/node_modules/
+remotion/out/
+remotion/*.jpg
+remotion/*.mp4
+hyperframes/node_modules/
+hyperframes/trial/
+hyperframes/cap_*/
+hyperframes/*/renders/
+
+# ---- junk ----
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

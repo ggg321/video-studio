@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Video Studio · Sources</title>
+<script src="/theme.js"></script><link rel="stylesheet" href="/ui.css"><style>
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 14px;flex-wrap:wrap}
+.tabs a{padding:9px 16px;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent;font-weight:500;text-decoration:none}
+.tabs a.on{color:var(--ac);border-bottom-color:var(--ac)}
+.frame{width:100%;border:0;min-height:calc(100vh - 170px);background:transparent}
+.mets{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.met{background:var(--raise);border-radius:12px;padding:12px 14px}.met b{display:block;font-size:24px;font-weight:600}.met span{color:var(--mut);font-size:13px}
+.gap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.gap.done{opacity:.55}.gap .tx{font-size:14px}.gap .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.panel{grid-column:1/-1;background:var(--raise);border-radius:12px;padding:12px;margin-top:2px}
+.hv{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:12px}.hv .it{background:var(--raise);border-radius:12px;overflow:hidden;font-size:12px}.hv video{width:100%;aspect-ratio:9/12;object-fit:cover;display:block;background:#000}.hv .b{padding:8px;display:grid;gap:6px}.hv input[type=text]{min-height:30px;font-size:12px}.hv .it.dup{opacity:.6}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px}
+.sg .it{background:var(--bg);border-radius:10px;overflow:hidden;font-size:12px}.sg img{width:100%;aspect-ratio:9/12;object-fit:cover;display:block}.sg .it div{padding:6px;display:flex;justify-content:space-between;align-items:center;gap:4px}
+</style></head><body>
+<header id="nav"></header><script src="/nav.js"></script>
+<main class="page">
+<div class="tabs" id="tabs"></div>
+<div id="view"></div>
+</main>
+<script src="/i18n.js"></script>
+<script>
+const $ = s => document.querySelector(s), esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const j = (u, b) => fetch(u, b === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json());
+const TABS = [['overview', 'Overview', null], ['harvest', 'From old videos', null], ['library', 'My library', '/library.html'], ['grok', 'Grok', '/grok.html'], ['flow', 'Flow', '/flow.html']];
+let NICHES = [], NICHE = localStorage.getItem('srcNiche') || 'weight-loss', OV = null, DONE = {};
+
+async function show() {
+  const k = (location.hash || '#overview').slice(1), tab = TABS.find(t => t[0] === k) || TABS[0];
+  $('#tabs').innerHTML = TABS.map(t => `<a class="${t[0] === tab[0] ? 'on' : ''}" href="#${t[0]}">${t[1]}</a>`).join('');
+  if (tab[2]) { $('#view').innerHTML = `<iframe class="frame" src="${tab[2]}" title="${tab[1]}"></iframe>`; return; }
+  NICHES = await j('/api/niches'); if (!NICHES.some(n => n.id === NICHE)) NICHE = (NICHES[0] || {}).id;
+  if (tab[0] === 'harvest') { HV_BATCH = null; return harvestView(); }
+  await overview();
+}
+let AF = null, CFGS = {};
+async function overview() {
+  OV = await j('/api/sources/overview?niche=' + encodeURIComponent(NICHE)); AF = await j('/api/autofill/candidates?niche=' + encodeURIComponent(NICHE)); CFGS = await j('/api/settings');
+  const o = OV;
+  $('#view').innerHTML = `<div class="row" style="align-items:center;gap:10px;margin-bottom:12px"><label style="margin:0">Niche</label><select id="nsel" onchange="setNiche(this.value)" style="max-width:260px">${NICHES.map(n => `<option value="${n.id}" ${n.id === NICHE ? 'selected' : ''}>${esc(n.name)} (${n.count})</option>`).join('')}</select></div>
+    <div class="mets"><div class="met"><b>${o.clips}</b><span>clips in the library</span></div><div class="met"><b>${o.coverage == null ? '–' : o.coverage + '%'}</b><span>moments with a fitting clip</span></div><div class="met"><b>${o.weekGaps}</b><span>moments without a clip this week</span></div><div class="met"><b>${o.overused}</b><span>clips used 3+ times</span></div><div class="met"><b>${o.unused}</b><span>clips never used</span></div></div>
+    <div class="card"><div class="row" style="align-items:center;gap:10px"><h2 style="margin:0">What is missing</h2><span class="badge">${o.gapCount} moment(s), from the plans of ${o.projects} project(s)</span>${o.ignored ? `<button class="sec sm" style="margin-left:auto" onclick="unignore()">Show ${o.ignored} ignored</button>` : ''}</div>
+      <div class="badge" style="margin:6px 0">The most frequent first. A clip you add is used the next time a project is analyzed.</div>
+      <div id="gaps">${o.gaps.slice(0, 40).map(gapRow).join('') || '<div class="badge" style="padding:14px 0">Every moment of your plans has a fitting clip.</div>'}</div></div>
+    ${afCard()}`;
+}
+const gapRow = (g, i) => `<div class="gap ${DONE[g.key] ? 'done' : ''}" id="g${i}"><div class="tx">${esc(g.text)}<div class="badge">${g.count}× in ${g.projects} project(s) · ${g.kind}${g.sim != null ? ' · ' + Math.round(g.sim * 100) + '% match' : ''}${DONE[g.key] ? ' · <b>added ' + esc(DONE[g.key]) + '</b>' : ''}</div></div>
+  <div class="acts"><button class="sec sm" onclick="gStock(${i})">Stock</button><button class="sec sm" onclick="gGrok(${i})">Grok</button><label class="btn sec sm" style="cursor:pointer;margin:0">File<input type="file" accept="video/*" hidden onchange="gFile(${i},this.files[0])"></label><button class="sec sm" onclick="gIgnore(${i})" title="Hide this moment">Ignore</button></div><div id="p${i}"></div></div>`;
+// ---- autofill with free stock ----
+function afCard() {
+  const a = AF, ready = o => o.keys.stock;
+  return `<div class="card" style="margin-top:14px"><div class="row" style="align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">Candidates to review</h2><span class="badge">free stock clips found for the gaps above</span>
+    <label class="chk" style="margin:0 0 0 auto"><input type="checkbox" id="afon" ${a.on ? 'checked' : ''} onchange="afSave()"> Look for clips every day</label><span class="badge">up to</span><input id="afn" type="number" min="1" max="20" value="${a.perDay}" style="width:70px" onchange="afSave()"><span class="badge">a day</span>
+    <button class="sec sm" onclick="afRun()">${a.running ? 'Searching…' : 'Search now'}</button></div>
+    <div class="badge" style="margin-top:6px">Pexels and Pixabay are free for commercial use. Nothing is added to the library until you press Add. ${ready(OV) ? '' : '<a href="/settings.html#keys">Add a free Pexels or Pixabay key to use this.</a>'}${a.lastError ? ' <span style="color:#e5484d">' + esc(a.lastError) + '</span>' : ''}</div>
+    <div class="sg" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">${a.items.map(c => `<div class="it"><video src="/autofill-files/${esc(c.niche)}/${esc(c.file)}" muted loop preload="metadata" controls style="width:100%;aspect-ratio:9/12;object-fit:cover;background:#000"></video><div style="display:block;padding:8px"><div style="font-size:12px;margin-bottom:6px">For: “${esc(c.text.slice(0, 80))}”</div><div class="badge">${esc(c.source)} · ${Math.round(c.dur)} s · <a href="${esc(c.page)}" target="_blank" rel="noopener">source</a></div><div class="row" style="gap:6px;margin-top:6px"><button class="sm" onclick="afAccept('${c.id}')">Add</button><button class="sec sm" onclick="afReject('${c.id}')">Not this</button></div></div></div>`).join('') || '<div class="badge" style="padding:10px 0">No candidates yet.</div>'}</div></div>`;
+}
+async function afSave() { await j('/api/projects/x/settings', { autofillOn: $('#afon').checked, autofillPerDay: +$('#afn').value || 5 }); toast('Saved'); }
+async function afRun() { const r = await j('/api/autofill/run', { niche: NICHE }); if (r.error) { toast(r.error); return; } toast(r.started ? 'Searching for clips…' : 'Already searching'); const poll = async () => { const s = await j('/api/autofill/candidates?niche=' + encodeURIComponent(NICHE)); if (s.running) return setTimeout(poll, 3000); overview(); }; setTimeout(poll, 3000); }
+async function afAccept(id) { const r = await j('/api/autofill/' + id + '/accept', {}); if (r.error) { toast(r.error); return; } toast('Added to the library'); overview(); }
+async function afReject(id) { await j('/api/autofill/' + id + '/reject', {}); overview(); }
+function setNiche(v) { NICHE = v; localStorage.setItem('srcNiche', v); overview(); }
+async function unignore() { await j('/api/sources/gap/unignore-all', { niche: NICHE }); overview(); }
+async function gIgnore(i) { await j('/api/sources/gap/ignore', { niche: NICHE, key: OV.gaps[i].key }); overview(); }
+function added(i, cid) { DONE[OV.gaps[i].key] = cid; toast('Added to the library'); const g = $('#g' + i); if (g) { g.classList.add('done'); $('#p' + i).innerHTML = ''; } }
+
+// ---- a file ----
+async function gFile(i, f) {
+  if (!f) return; const fd = new FormData(); fd.append('text', OV.gaps[i].text); fd.append('file', f);
+  $('#p' + i).innerHTML = '<div class="panel badge">Uploading…</div>';
+  const r = await (await fetch('/api/sources/gap/file?niche=' + encodeURIComponent(NICHE), { method: 'POST', body: fd })).json();
+  if (r.error) { $('#p' + i).innerHTML = `<div class="panel" style="color:#e5484d">${esc(r.error)}</div>`; return; } added(i, r.clip);
+}
+// ---- free stock ----
+let SR = {};
+async function gStock(i, q) {
+  $('#p' + i).innerHTML = '<div class="panel badge">Searching…</div>';
+  const r = await j('/api/sources/gap/stock-search', { text: OV.gaps[i].text, q: q || '' });
+  if (r.error) { $('#p' + i).innerHTML = `<div class="panel"><span style="color:#e5484d">${esc(r.error)}</span>${OV.keys.stock ? '' : ' <a href="/settings.html#keys">Add a free Pexels or Pixabay key</a>'}</div>`; return; }
+  SR[i] = r.items;
+  $('#p' + i).innerHTML = `<div class="panel"><div class="row" style="gap:8px"><input id="q${i}" value="${esc(r.q)}"><button class="sec" onclick="gStock(${i},$('#q${i}').value)">Search again</button></div>
+    <div class="badge" style="margin-top:6px">Stock search works best with English words.</div>
+    <div class="sg">${r.items.map((s, k) => `<div class="it"><img src="${esc(s.thumb)}" alt=""><div><span>${Math.round(s.dur || 0)} s · ${esc(s.source)}</span><button class="sm" onclick="sAdd(${i},${k})">Add</button></div></div>`).join('') || '<div class="badge">Nothing found. Try other words.</div>'}</div></div>`;
+}
+async function sAdd(i, k) {
+  const s = SR[i][k]; toast('Downloading…');
+  const r = await j('/api/sources/gap/stock-add', { niche: NICHE, text: OV.gaps[i].text, item: s }); if (r.error) { toast(r.error); return; } added(i, r.clip);
+}
+// ---- Grok (paid) ----
+async function gGrok(i) {
+  const r = await j('/api/sources/gap/grok-preview', { niche: NICHE, text: OV.gaps[i].text });
+  if (r.error) { $('#p' + i).innerHTML = `<div class="panel"><span style="color:#e5484d">${esc(r.error)}</span>${OV.keys.grok ? '' : ' <a href="/settings.html#keys">Add the xAI key</a>'}</div>`; return; }
+  SR['g' + i] = r;
+  $('#p' + i).innerHTML = `<div class="panel"><label>Prompt (you can edit it)</label><textarea id="gp${i}" style="min-height:90px">${esc(r.prompt)}</textarea>
+    <div class="row" style="align-items:center;gap:10px;margin-top:8px"><select id="gr${i}" onchange="gGrokCost(${i})"><option>480p</option><option selected>720p</option><option>1080p</option></select><span class="badge" id="gc${i}">${r.seconds} s clip · about $${r.estUsd.toFixed(2)} (an estimate: the real price is on your xAI account)</span>
+    <button onclick="gGrokGo(${i})" style="margin-left:auto">Confirm and generate</button></div></div>`;
+}
+async function gGrokCost(i) { const r = await j('/api/sources/gap/grok-preview', { niche: NICHE, text: OV.gaps[i].text, res: $('#gr' + i).value, prompt: $('#gp' + i).value }); if (r.error) return; SR['g' + i] = r; $('#gc' + i).textContent = `${r.seconds} s clip · about $${r.estUsd.toFixed(2)} (an estimate: the real price is on your xAI account)`; }
+async function gGrokGo(i) {
+  const r = await j('/api/sources/gap/grok-preview', { niche: NICHE, text: OV.gaps[i].text, res: $('#gr' + i).value, prompt: $('#gp' + i).value }); if (r.error) { toast(r.error); return; }
+  const g = await j('/api/sources/gap/grok-generate', { token: r.token }); if (g.error) { toast(g.error); return; }
+  $('#p' + i).innerHTML = '<div class="panel badge">Generating… this takes a minute or two.</div>';
+  const poll = async () => { const s = await j('/api/sources/gap/grok-status/' + g.job); if (s.status === 'running') return setTimeout(poll, 3000); if (s.status === 'done') return added(i, s.clip); $('#p' + i).innerHTML = `<div class="panel" style="color:#e5484d">${esc(s.error || 'Could not generate the clip.')}</div>`; }; poll();
+}
+// ---- cut inserts out of old videos ----
+let HV_BATCH = null, HV_TM = null;
+const HV_LANGS = [['', 'Auto-detect'], ['en', 'English'], ['ru', 'Русский'], ['uk', 'Українська'], ['de', 'Deutsch'], ['fr', 'Français'], ['es', 'Español'], ['it', 'Italiano'], ['pl', 'Polski'], ['pt', 'Português'], ['nl', 'Nederlands'], ['tr', 'Türkçe']];
+async function harvestView() {
+  clearTimeout(HV_TM);
+  const recent = (await j('/api/harvest')).filter(b => b.status === 'done' && b.clips).slice(0, 5);
+  $('#view').innerHTML = `<div class="card"><h2>Cut inserts out of your old videos</h2>
+    <div class="badge" style="margin:4px 0 12px">Add finished videos from your archive. The platform finds the inserts (everything except the speaker), cuts them out, writes down what was said at that moment, and shows them to you. Nothing goes to the library until you tick the clips and confirm. Only the picture is used.</div>
+    <div class="row" style="align-items:flex-end;gap:10px"><div style="flex:1;min-width:220px"><label>Videos</label><input type="file" id="hvf" accept="video/*" multiple></div>
+      <div style="flex:0 0 180px"><label>Subtitles in them</label><select id="hvs"><option value="auto">Find and crop them</option><option value="none">No subtitles</option><option value="crop">Crop the bottom anyway</option></select></div>
+      <div style="flex:0 0 150px"><label>Language</label><select id="hvl">${HV_LANGS.map(l => `<option value="${l[0]}">${l[1]}</option>`).join('')}</select></div>
+      <button onclick="hvStart()">Find the clips</button></div>
+    <div class="badge" style="margin-top:8px">If you have both a version with subtitles and one without, add both: the clean one is used. Niche: ${esc((NICHES.find(n => n.id === NICHE) || {}).name || NICHE)}. Takes a minute or two per video.</div></div>
+    <div id="hvr">${recent.length ? `<div class="card"><b>Unfinished reviews</b>${recent.map(b => `<div class="row" style="align-items:center;gap:10px;margin-top:6px"><span class="badge">${new Date(b.created).toLocaleString()} · ${b.clips} clip(s)</span><button class="sec sm" onclick="hvOpen('${b.id}')">Continue</button><button class="sec sm" onclick="hvDiscard('${b.id}')">Discard</button></div>`).join('')}</div>` : ''}</div>`;
+}
+async function hvStart() {
+  const f = $('#hvf').files; if (!f.length) { toast('Choose one or more video files first.'); return; }
+  const fd = new FormData(); fd.append('subs', $('#hvs').value); fd.append('lang', $('#hvl').value); for (const x of f) fd.append('files', x);
+  $('#hvr').innerHTML = '<div class="card badge">Uploading ' + f.length + ' file(s)…</div>';
+  const r = await (await fetch('/api/harvest?niche=' + encodeURIComponent(NICHE), { method: 'POST', body: fd })).json();
+  if (r.error) { $('#hvr').innerHTML = '<div class="card" style="color:#e5484d">' + esc(r.error) + '</div>'; return; } hvOpen(r.id);
+}
+async function hvOpen(id) {
+  clearTimeout(HV_TM); const b = await j('/api/harvest/' + id); if (b.error) { toast(b.error); return; } HV_BATCH = b;
+  const files = b.files.map(f => `<div class="badge">${esc(f.name)}: ${f.status === 'done' ? (f.subs ? 'subtitles found, the bottom is cropped' : 'no subtitles') : f.status === 'skipped' ? esc(f.note || 'skipped') : f.status}</div>`).join('');
+  if (b.status === 'failed') { $('#hvr').innerHTML = '<div class="card" style="color:#e5484d">' + esc(b.error || 'Could not analyze the videos.') + '</div>'; return; }
+  if (b.status !== 'done') { $('#hvr').innerHTML = '<div class="card"><b>Analyzing…</b><div style="margin-top:8px">' + files + '</div></div>'; HV_TM = setTimeout(() => hvOpen(id), 4000); return; }
+  const n = b.clips.length;
+  $('#hvr').innerHTML = `<div class="card"><div class="row" style="align-items:center;gap:10px"><b>${n} clip(s) found</b><span class="badge">Clips marked as duplicates are not ticked.</span></div><div style="margin-top:6px">${files}</div>
+    ${n ? `<div class="hv">${b.clips.map(c => `<div class="it ${c.dup ? 'dup' : ''}"><video src="/harvest-files/${b.id}/clips/${c.file}" muted loop preload="metadata" controls></video><div class="b">
+      <label class="chk" style="margin:0"><input type="checkbox" id="hc${c.n}" ${c.dup ? '' : 'checked'}> Add (${c.dur} s)</label>
+      <div>${c.dup ? '<span class="pill warn">' + (c.dup === 'batch' ? 'repeats another clip here' : 'already in the library: ' + esc(c.dup)) + '</span> ' : ''}${c.cropped ? '<span class="pill">cropped</span>' : ''}</div>
+      <input type="text" id="ht${c.n}" value="${esc(c.tags.join(', '))}" placeholder="tags, separated by commas"><input type="text" id="hd${c.n}" value="${esc(c.desc)}" placeholder="what happens in the clip"></div></div>`).join('')}</div>
+      <div class="row" style="margin-top:14px;gap:10px"><button onclick="hvAdd('${b.id}')">Add the ticked clips to the library</button><button class="sec" onclick="hvDiscard('${b.id}')">Discard all</button></div>` : '<div class="badge" style="margin-top:8px">No inserts were found in these videos.</div>'}</div>`;
+}
+async function hvAdd(id) {
+  const items = HV_BATCH.clips.filter(c => $('#hc' + c.n) && $('#hc' + c.n).checked).map(c => ({ n: c.n, tags: $('#ht' + c.n).value, desc: $('#hd' + c.n).value }));
+  const r = await j('/api/harvest/' + id + '/add', { niche: NICHE, items }); if (r.error) { toast(r.error); return; }
+  toast(r.added + ' clip(s) added to the library'); harvestView();
+}
+async function hvDiscard(id) { if (!(await uiConfirm('Discard these clips?', 'Discard', true))) return; await j('/api/harvest/' + id + '/discard', {}); harvestView(); }
+window.addEventListener('hashchange', show); show();
+</script></body></html>

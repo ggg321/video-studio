@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "skills": {
+    "ad-creative-video": {
+      "source": "iart-ai/ad-video-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ad-creative-video/SKILL.md",
+      "computedHash": "d60a6550e9e4aaf951f9950226085f497a1803e750c5968b3e64c501c72ccc98"
+    },
+    "after-effects": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/after-effects/SKILL.md",
+      "computedHash": "59837ca57aedc5a49e41bbe9c6f7d4c4defbc1537a924966da03e7b0f101af9c"
+    },
+    "animation-principles": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/animation-principles/SKILL.md",
+      "computedHash": "0a326d3bf3488aa365077a0a8974205e9dd92a474d4ce0c8f77591c56e831676"
+    },
+    "beat-sync-editing": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/beat-sync-editing/SKILL.md",
+      "computedHash": "74264047126b3c80d248dc423b177edc921bcffae27e4cafbf53b08ae882c78d"
+    },
+    "caption-animation": {
+      "source": "iart-ai/tiktok-video-skills",
+      "sourceType": "github",
+      "skillPath": "skills/caption-animation/SKILL.md",
+      "computedHash": "1bcfe2026d1b2a81ff7257d7149f4a555d6d28e238be909050c308bec85ea513"
+    },
+    "color-motion": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/color-motion/SKILL.md",
+      "computedHash": "7b0806ecfaf403f40227a524a75eb679f10f399cfd8297a60eec89d5643d74e7"
+    },
+    "countdown-video": {
+      "source": "iart-ai/tiktok-video-skills",
+      "sourceType": "github",
+      "skillPath": "skills/countdown-video/SKILL.md",
+      "computedHash": "5517971d5aa7c1dc683f68158c5bf973d101ca9d08f485ea8d99e4e68c4b3e85"
+    },
+    "kinetic-typography": {
+      "source": "iart-ai/kinetic-typography-skills",
+      "sourceType": "github",
+      "skillPath": "skills/kinetic-typography/SKILL.md",
+      "computedHash": "ee17c621533649e7e56fd7c3aa307c4af42796db437f29701a6beca9e6bebb26"
+    },
+    "launch-video": {
+      "source": "iart-ai/ad-video-skills",
+      "sourceType": "github",
+      "skillPath": "skills/launch-video/SKILL.md",
+      "computedHash": "88b79f30208a924b22b0c014b285e259399c28ed22f602f10f81a5a83e5bd748"
+    },
+    "logo-animation": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/logo-animation/SKILL.md",
+      "computedHash": "2458d6dd7ddf187c34dd09bf32fa664a97a88e8e190922b51b7280f948b1f3e5"
+    },
+    "lower-thirds": {
+      "source": "iart-ai/tiktok-video-skills",
+      "sourceType": "github",
+      "skillPath": "skills/lower-thirds/SKILL.md",
+      "computedHash": "a56f20437e41c2e082ed6f3fb4fb044486b6c6fd1f6a875d3df037e0235f5aec"
+    },
+    "motion-art-direction": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/motion-art-direction/SKILL.md",
+      "computedHash": "80b93986865759aeeb8b316a9e416eae213f096216ce42b1c1f906e2055f2399"
+    },
+    "motion-background": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/motion-background/SKILL.md",
+      "computedHash": "dab47844cc4ebaef944af96e75f3a9bdb6f11c4453337a145aa2a229e80fbf44"
+    },
+    "release": {
+      "source": "av/remotion-bits",
+      "sourceType": "github",
+      "skillPath": ".github/skills/release/SKILL.md",
+      "computedHash": "7d9ed0662ad6e38ecbb4f832423d5b08540dd03f1964a6f7fed104bfc5efa57c"
+    },
+    "remotion-best-practices": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-best-practices/SKILL.md",
+      "computedHash": "82737c4a08aae4d4d28b75dcafacbf6ef934679ae98457d22fc8c4be16b99e73"
+    },
+    "remotion-bits": {
+      "source": "av/remotion-bits",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-bits/SKILL.md",
+      "computedHash": "938e0c35f54b0998d3960647277483a6a51ad455c94a5cacf2363c16f98206f1"
+    },
+    "remotion-captions": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-captions/SKILL.md",
+      "computedHash": "4dd60d5c1a8c95723f74163dc1e18a0947846a6d366cb321609dffe16d90c461"
+    },
+    "remotion-create": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-create/SKILL.md",
+      "computedHash": "89d7b8ae666190661ebdc75b7ea68362859ccd05e00e4e683521dbb80e2845dd"
+    },
+    "remotion-docs": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-docs/SKILL.md",
+      "computedHash": "6422ebc0925ef0f824eece0fb3a319902a884ff6f1e0ca2e3a5490ceeda75375"
+    },
+    "remotion-interactivity": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-interactivity/SKILL.md",
+      "computedHash": "ee7542beb8290a9da11b54f583cae0df0426c693e831229cd87f6918462420c9"
+    },
+    "remotion-maps": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-maps/SKILL.md",
+      "computedHash": "cbab37ba9d6c412a7e633d0f781a5180ebe47598934c120d0e4e3e6561469b50"
+    },
+    "remotion-markup": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-markup/SKILL.md",
+      "computedHash": "47cfcc16e39e6be14e0ed2815d56091c639a68b6b21ef77be557b52a5c66ea21"
+    },
+    "remotion-multimedia": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-multimedia/SKILL.md",
+      "computedHash": "7db80a5865cc627b0e2c98f8866175f55aca8df81c8bbf2927de01c44f7690d8"
+    },
+    "remotion-render": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-render/SKILL.md",
+      "computedHash": "68c4ebeb3ac9ee13ae951c77a5416857c283e4fce17d3491afbe907b330f89b5"
+    },
+    "remotion-saas": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-saas/SKILL.md",
+      "computedHash": "0a60f2deae0935faf45e9da0ac253b4c395c7487f512a08678704bf369f20941"
+    },
+    "remotion-studio": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-studio/SKILL.md",
+      "computedHash": "0d8b4e4f4908bb6e6e9cba13633fe66d7e51f5ea4d1355e3b507c3a354643ed2"
+    },
+    "remotion-upgrade": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-upgrade/SKILL.md",
+      "computedHash": "73dcf3d924abb3dc04a185a9768259c75d3206e07da6948f4868e9e28f46b06a"
+    },
+    "remotion-video": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/remotion-video/SKILL.md",
+      "computedHash": "be476bbf6e2f0e6fe04986d2d7a8387ca4a0c138b32777fce9a64c98e70afa67"
+    },
+    "short-form-video": {
+      "source": "iart-ai/tiktok-video-skills",
+      "sourceType": "github",
+      "skillPath": "skills/short-form-video/SKILL.md",
+      "computedHash": "f2cb1610f64f2f3013ff20ef6acc4094bcd8de2c578098643f110926c7ef4df2"
+    },
+    "shot-composition": {
+      "source": "iart-ai/motion-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/shot-composition/SKILL.md",
+      "computedHash": "3a9895bee82e808a9e61b6db08a66b0fc379fcb2442f1cf3760b08a4abbd19d9"
+    },
+    "testimonial-video": {
+      "source": "iart-ai/ad-video-skills",
+      "sourceType": "github",
+      "skillPath": "skills/testimonial-video/SKILL.md",
+      "computedHash": "863cb762ce0b8e3c8a76c67fc8461bf32f6631fab2e7bcc038cb7d60d6a5217c"
+    }
+  }
+}

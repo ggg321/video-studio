@@ -1,0 +1,1 @@
+Files in this folder (transitions, components, theme) come from digitalsamba/claude-code-video-toolkit (MIT, see LICENSE-digitalsamba-toolkit.txt).
