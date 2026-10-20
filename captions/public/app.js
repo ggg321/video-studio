@@ -1,8 +1,8 @@
 const $ = id => document.getElementById(id);
 const D = {
   en: {}, 
-  ru: { drop: 'Перетащи видео сюда или нажми', dropsub: 'Любое видео: вертикальное, горизонтальное или квадратное', h_text: 'Текст', spoken: 'Язык речи', recog: 'Распознать речь', or: 'или', imp: 'Загрузить .srt', trans: 'Перевести на', translate: 'Перевести', back: 'Вернуть оригинал', regroup: 'Сгруппировать заново', redo: 'Распознать заново', h_style: 'Стиль', h_set: 'Настройки', accent: 'Цвет акцента', own: 'Как в стиле', size: 'Размер', lines: 'Строк', pos: 'Высота', font: 'Шрифт', fontnote: 'Для других алфавитов (китайский, арабский, тайский…) берётся системный шрифт, в котором есть эти буквы.', h_out: 'Результат', burn: 'Вшить субтитры в видео', dlv: 'Скачать видео', auto: 'авто', recognizing: 'Распознаю речь…', translating: 'Перевожу…', rendering: 'Рендерю…', done: 'Готово' },
-  uk: { drop: 'Перетягни відео сюди або натисни', dropsub: 'Будь-яке відео: вертикальне, горизонтальне або квадратне', h_text: 'Текст', spoken: 'Мова мовлення', recog: 'Розпізнати мовлення', or: 'або', imp: 'Завантажити .srt', trans: 'Перекласти на', translate: 'Перекласти', back: 'Повернути оригінал', regroup: 'Згрупувати заново', redo: 'Розпізнати заново', h_style: 'Стиль', h_set: 'Налаштування', accent: 'Колір акценту', own: 'Як у стилі', size: 'Розмір', lines: 'Рядків', pos: 'Висота', font: 'Шрифт', fontnote: 'Для інших алфавітів (китайська, арабська, тайська…) беремо системний шрифт, де є ці літери.', h_out: 'Результат', burn: 'Вшити субтитри у відео', dlv: 'Завантажити відео', auto: 'авто', recognizing: 'Розпізнаю мовлення…', translating: 'Перекладаю…', rendering: 'Рендерю…', done: 'Готово' }
+  ru: { drop: 'Перетащи видео сюда или нажми', dropsub: 'Любое видео: вертикальное, горизонтальное или квадратное', h_text: 'Текст', spoken: 'Язык речи', recog: 'Распознать речь', or: 'или', imp: 'Загрузить .srt', trans: 'Перевести на', translate: 'Перевести', back: 'Вернуть оригинал', regroup: 'Сгруппировать заново', redo: 'Распознать заново', h_style: 'Стиль', h_set: 'Настройки', accent: 'Цвет акцента', own: 'Как в стиле', size: 'Размер', lines: 'Строк', pos: 'Вверх / вниз', posx: 'Влево / вправо', dragnote: 'Субтитры можно перетаскивать прямо в превью.', font: 'Шрифт', fontnote: 'Для других алфавитов (китайский, арабский, тайский…) берётся системный шрифт, в котором есть эти буквы.', h_out: 'Результат', burn: 'Вшить субтитры в видео', dlv: 'Скачать видео', auto: 'авто', recognizing: 'Распознаю речь…', translating: 'Перевожу…', rendering: 'Рендерю…', done: 'Готово' },
+  uk: { drop: 'Перетягни відео сюди або натисни', dropsub: 'Будь-яке відео: вертикальне, горизонтальне або квадратне', h_text: 'Текст', spoken: 'Мова мовлення', recog: 'Розпізнати мовлення', or: 'або', imp: 'Завантажити .srt', trans: 'Перекласти на', translate: 'Перекласти', back: 'Повернути оригінал', regroup: 'Згрупувати заново', redo: 'Розпізнати заново', h_style: 'Стиль', h_set: 'Налаштування', accent: 'Колір акценту', own: 'Як у стилі', size: 'Розмір', lines: 'Рядків', pos: 'Вгору / вниз', posx: 'Вліво / вправо', dragnote: 'Субтитри можна перетягувати прямо в превʼю.', font: 'Шрифт', fontnote: 'Для інших алфавітів (китайська, арабська, тайська…) беремо системний шрифт, де є ці літери.', h_out: 'Результат', burn: 'Вшити субтитри у відео', dlv: 'Завантажити відео', auto: 'авто', recognizing: 'Розпізнаю мовлення…', translating: 'Перекладаю…', rendering: 'Рендерю…', done: 'Готово' }
 };
 let L = 'en'; try { L = localStorage.getItem('capLang') || (navigator.language || 'en').slice(0, 2); } catch {} if (!D[L]) L = 'en';
 const EN = {};
@@ -69,7 +69,7 @@ $('cues').oninput = e => {
 $('cues').onfocusin = e => { const c = job.cues[e.target.dataset.i]; if (c) { $('scrub').value = Math.round(1000 * Math.min(1, (c.start + 0.2) / job.duration)); preview(); } };
 
 // ---------- preview ----------
-const opts = () => ({ style, accent: accOn ? $('accent').value : '', capScale: $('scale').value, capLines: $('lines').value, capY: posOn ? $('posy').value : '', capX: posOn ? 0.5 : '', font: $('font').value });
+const opts = () => ({ style, accent: accOn ? $('accent').value : '', capScale: $('scale').value, capLines: $('lines').value, capY: posOn ? $('posy').value : '', capX: posOn ? $('posx').value : '', font: $('font').value });
 const curT = () => +$('scrub').value / 1000 * job.duration;
 function preview() {
   if (!job) return; clearTimeout(pvTimer); pvTimer = setTimeout(async () => {
@@ -84,7 +84,17 @@ function preview() {
 }
 $('scrub').oninput = preview;
 ['scale', 'lines', 'font', 'accent'].forEach(i => $(i).addEventListener('input', () => { if (i === 'accent') accOn = true; preview(); }));
-$('posy').oninput = () => { posOn = true; preview(); };
+$('posy').oninput = $('posx').oninput = () => { posOn = true; preview(); };
+// drag the subtitles in the preview: the point under the pointer becomes the centre of the caption
+let dragging = false;
+function dragTo(e) {
+  const r = $('pv').getBoundingClientRect(), cl = v => Math.min(0.95, Math.max(0.05, v));
+  $('posx').value = cl((e.clientX - r.left) / r.width); $('posy').value = cl((e.clientY - r.top) / r.height); posOn = true; preview();
+}
+$('pv').style.cursor = 'crosshair'; $('pv').draggable = false;
+$('pv').onpointerdown = e => { dragging = true; $('pv').setPointerCapture(e.pointerId); dragTo(e); e.preventDefault(); };
+$('pv').onpointermove = e => { if (dragging) dragTo(e); };
+$('pv').onpointerup = $('pv').onpointercancel = () => { dragging = false; };
 $('posOff').onclick = () => { posOn = false; preview(); }; $('accOff').onclick = () => { accOn = false; preview(); };
 
 // ---------- tasks ----------
