@@ -129,6 +129,27 @@ function lightMotionCard() {
       + '<label class="chk"><input type="checkbox"' + (m.particles ? ' checked' : '') + ' onchange="setLM(\'particles\',this.checked)"> Floating particles</label>' : '')
     + '</div>';
 }
+// a photo in the first seconds and a timer that extends the end of the finished video (Pro)
+let WRAP = null;
+function wrapCard() {
+  if (!WRAP || WRAP._id !== P.id) { const id = P.id; api('/api/projects/' + id + '/wrap').then(w => { WRAP = Object.assign(w, { _id: id }); draw(); }); return '<div class="card"><h2>Photo and timer</h2><div class="badge">Loading…</div></div>'; }
+  const w = WRAP;
+  const sel = (k, opts) => '<select data-k="' + k + '" onchange="setWrap(this.dataset.k,this.value)">' + opts.map(([v, l]) => '<option value="' + v + '"' + (String(w[k]) === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
+  const chk = (k, label, extra) => '<label class="chk"' + (extra || '') + '><input type="checkbox" data-k="' + k + '"' + (w[k] ? ' checked' : '') + ' onchange="setWrap(this.dataset.k,this.checked)"> ' + label + '</label>';
+  const inp = (k, type, extra) => '<input data-k="' + k + '" ' + (type ? 'type="' + type + '" ' : '') + (extra || '') + ' value="' + esc(w[k]) + '" onchange="setWrap(this.dataset.k,this.value)" style="width:90px">';
+  return '<div class="card"><h2>Photo and timer</h2><div class="badge">A photo in the first seconds of the finished video, and a timer that extends the end to the length you choose (for example 9:50). It is applied when the video is rendered.</div>'
+    + chk('introOn', 'Photo at the start of the video', ' style="margin-top:10px"')
+    + (w.introOn ? '<div class="row" style="gap:12px"><div><label>Seconds</label>' + inp('introSec', 'number', 'min="0.5" max="10" step="0.5"') + '</div>'
+      + '<div><label>Photo</label>' + sel('introSrc', w.pexels ? [['nature', 'Nature (random, from Pexels)'], ['upload', 'My photo']] : [['upload', 'My photo']]) + '</div>'
+      + (w.introSrc === 'upload' ? '<div><label>&nbsp;</label><input type="file" accept="image/*" onchange="wrapPhoto(this.files[0])"><div class="badge">' + esc(w.introName || (w.introFile ? 'photo chosen' : 'no photo yet')) + '</div></div>' : '') + '</div>' : '')
+    + chk('outroOn', 'Extend the end with a timer')
+    + (w.outroOn ? '<div class="row" style="gap:12px"><div><label>Until (min:sec)</label>' + inp('outroTarget') + '</div>'
+      + '<div><label>Background</label>' + sel('outroBg', [['black', 'Black'], ['white', 'White'], ['last', 'Last frame, dimmed']]) + '</div>'
+      + '<div><label>Timer</label>' + sel('outroDown', [['false', 'Counts up'], ['true', 'Counts down']]) + '</div></div>' : '')
+    + '</div>';
+}
+async function setWrap(k, v) { if (k === 'outroDown') v = v === 'true'; const r = await api('/api/projects/' + P.id + '/wrap', { [k]: v }); if (r.error) { alert(r.error); WRAP = null; } else WRAP = Object.assign(r, { _id: P.id }); draw(); }
+async function wrapPhoto(f) { if (!f) return; const fd = new FormData(); fd.append('file', f); const r = await (await fetch('/api/projects/' + P.id + '/wrap-photo', { method: 'POST', body: fd })).json(); if (r.error) alert(r.error); else WRAP = Object.assign(r, { _id: P.id }); draw(); }
 async function setLM(k, v) { P.lightMotion = await api('/api/projects/' + P.id + '/lightmotion', { [k]: v }); draw(); }
 // several separate videos of the speaker -> one speaker video (in the order chosen)
 let JOINQ = [], JOINMSG = '';
@@ -190,6 +211,7 @@ function styleStep() {
     <div id="capprev" style="margin-top:18px"></div></div>
     ${bandCard()}
     ${lightMotionCard()}
+    ${wrapCard()}
     <div class="card"><h2>Look of the video</h2>
     <div class="row"><div><label>Transitions</label>${trnSelect()}</div><div><label>Transition speed (${Math.round((P.transDur || 0.35) * 100) / 100} s)</label><input type="range" min="0.15" max="0.9" step="0.05" value="${P.transDur || 0.35}" onchange="setP('transDur',+this.value)"></div></div>
     <div class="badge" style="margin-top:6px">Light, zoom and news transitions are applied to every insert. Mixes alternate between the transitions of one kind.</div>

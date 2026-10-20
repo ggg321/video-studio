@@ -115,6 +115,7 @@ function row(c) {
       <span class="pill ${lf[1]}" style="margin-left:auto" title="Status for the team">${lf[0]}${c.daysLeft != null ? ' · auto in ' + Math.max(0, c.daysLeft).toFixed(1) + ' d' : ''}</span><button class="ghost sm" title="Make a copy of this creative" onclick="dupCr('${c.id}')">Duplicate</button><button class="ghost sm" title="Delete this creative" onclick="delCr('${c.id}')">Delete</button><a class="btn sec sm" href="/typo.html?id=${c.id}" title="Animated key words, text scenes and phone frames, like the sample">Typographic</a><a class="btn sec sm" href="/#${c.id}" title="All the settings of this creative">Open in Pro</a></div>
     <textarea id="sc_${c.id}" class="${c.outFile ? 'small' : ''}" placeholder="Script: what the speaker says" onchange="saveField('${c.id}','script',this.value)">${esc(c.script)}</textarea>
     ${segBlock(c)}
+    ${wrapBlock(c)}
     ${NICHES.length > 1 ? `<div class="crow" style="margin-top:8px"><span class="chip2">Inserts from <select onchange="setLibs('${c.id}',this.value)"><option value="" ${c.libs ? '' : 'selected'}>this niche</option><option value="all" ${c.libs === 'all' ? 'selected' : ''}>all libraries</option></select></span><span class="badge">With “all libraries” a better clip from another niche is used too.</span></div>` : ''}
     ${REFS.length ? `<div class="crow" style="margin-top:8px"><span class="chip2">Like a sample <select onchange="setRef('${c.id}',this.value)"><option value="">none</option>${REFS.map(r => `<option value="${r.id}" ${c.reference === r.id ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></span><span class="badge">The inserts and the hook are placed with the rhythm of a finished video from your archive.</span></div>` : ''}
     <div class="src" ${c.segs && c.segs.on ? 'style="display:none"' : ''}><div><label>Where the voice or video comes from</label><select id="sr_${c.id}" onchange="setSource('${c.id}',this.value)">${srcOptions(c)}</select></div>
@@ -232,6 +233,21 @@ async function joinGo() {
 async function dupCr(id) { const c = B.creatives.find(x => x.id === id); const r = await j('/api/projects/' + id + '/duplicate', { name: (c ? c.name : 'Creative') + ' (copy)' }); if (r.error) { toast(r.error); return; } toast('Copy made.'); await load(); }
 async function delCr(id) { const c = B.creatives.find(x => x.id === id); if (!await uiConfirm('Delete “' + (c ? c.name : 'this creative') + '” with its files and renders? This cannot be undone.', 'Delete', true)) return; const r = await j('/api/projects/' + id + '/delete', {}); if (r.error) { toast(r.error); return; } await load(); }
 // the libraries: used by the next analysis; a creative that is already made is made again at once
+// photo at the start + timer at the end
+function wrapBlock(c) {
+  const w = c.wrap || {};
+  const sel = (k, opts) => '<select data-id="' + c.id + '" data-k="' + k + '" onchange="setWrap(this.dataset.id,this.dataset.k,this.value)">' + opts.map(([v, l]) => '<option value="' + v + '"' + (String(w[k]) === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
+  const chk = (k, label, after) => '<label class="chip2"><input type="checkbox" data-id="' + c.id + '" data-k="' + k + '" ' + (w[k] ? 'checked' : '') + ' onchange="setWrap(this.dataset.id,this.dataset.k,this.checked)"> ' + label + (after || '') + '</label>';
+  const target = ' <input style="width:70px" data-id="' + c.id + '" data-k="outroTarget" value="' + esc(w.outroTarget || '9:50') + '" onchange="setWrap(this.dataset.id,this.dataset.k,this.value)">';
+  return '<div class="crow" style="margin-top:8px;flex-wrap:wrap;gap:10px">' + chk('introOn', 'Nature photo at the start (1 s)') + chk('outroOn', 'Timer at the end until', target)
+    + (w.outroOn ? '<span class="chip2">on ' + sel('outroBg', [['black', 'black'], ['white', 'white'], ['last', 'last frame']]) + sel('outroDown', [['false', 'counts up'], ['true', 'counts down']]) + '</span>' : '') + '</div>';
+}
+async function setWrap(id, k, v) {
+  if (k === 'outroDown') v = v === 'true';
+  const r = await j('/api/projects/' + id + '/wrap', k === 'introOn' && v ? { introOn: true, introSec: 1, introSrc: 'nature' } : { [k]: v });
+  if (r.error) alert(r.error);
+  await mark(id); await load();
+}
 async function setLibs(id, v) {
   await j('/api/projects/' + id, { libs: v });
   const c = B.creatives.find(x => x.id === id); if (c) c.libs = v;

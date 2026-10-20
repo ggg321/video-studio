@@ -186,7 +186,7 @@ app.post('/api/:id/render', wrap(async (req, res) => {
     else { const f = fs.readdirSync(dir).find(n => n.startsWith('photo_user')); if (!f) throw new Error('Choose a photo first'); photo = path.join(dir, f); }
     ex.intro = { on: true, sec: o.intro.sec, photo };
   }
-  if (o.outro && o.outro.on) { const t = X.parseTime(o.outro.target); if (!t) throw new Error('Write the length like 9:50'); ex.outro = { on: true, target: t, down: !!o.outro.down }; }
+  if (o.outro && o.outro.on) { const t = X.parseTime(o.outro.target); if (!t) throw new Error('Write the length like 9:50'); ex.outro = { on: true, target: t, down: !!o.outro.down, bg: o.outro.bg }; }
   const pl = await X.plan(j, dir, ex, FONTS);      // throws a readable message when the target is shorter than the video
   TASKS.set(j.id, { kind: 'render', state: 'run', pct: 1 });
   res.json({ ok: true });

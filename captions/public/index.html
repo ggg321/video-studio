@@ -80,8 +80,9 @@ button.sm{padding:6px 11px;min-height:0;font-size:13px}
         <label class="row" style="cursor:pointer"><input type="checkbox" id="outOn"> <span data-t="outOn">Extend the end with a timer</span></label>
         <div id="outSet" hidden>
           <div class="row"><label data-t="outTo">Until</label><input id="outT" value="9:50" style="width:90px"><span class="mut" data-t="outFmt">min:sec</span></div>
+          <div class="row"><label data-t="outBg">Background</label><select id="outBg" style="width:auto"><option value="black">Black</option><option value="white">White</option><option value="last">Last frame, dimmed</option></select></div>
           <div class="row"><label data-t="outMode">Timer</label><select id="outMode" style="width:auto"><option value="up">Counts up</option><option value="down">Counts down</option></select></div>
-          <div class="mut" data-t="outNote">After the last frame of the video, a timer runs over the dimmed last frame until the chosen length.</div>
+          <div class="mut" data-t="outNote">After the last frame of the video, a timer runs on the chosen background until the chosen length.</div>
         </div>
       </div>
       <div class="box"><h3 data-t="h_out">Result</h3>
