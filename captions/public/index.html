@@ -70,6 +70,20 @@ button.sm{padding:6px 11px;min-height:0;font-size:13px}
         <div class="row"><label data-t="font">Font</label><select id="font" style="flex:1"><option value="">Style's own</option></select></div>
         <div class="mut" data-t="fontnote">Other alphabets (Chinese, Arabic, Thai…) use a system font that has the letters.</div>
       </div>
+      <div class="box"><h3 data-t="h_ext">Photo and timer</h3>
+        <label class="row" style="cursor:pointer"><input type="checkbox" id="inOn"> <span data-t="inOn">Photo at the start of the video</span></label>
+        <div id="inSet" hidden>
+          <div class="row"><label data-t="inLen">Seconds</label><input type="number" id="inSec" value="1" min="0.5" max="10" step="0.5" style="width:80px"></div>
+          <div class="row"><label data-t="inSrc">Photo</label><select id="inSrc" style="width:auto"><option value="upload">My photo</option><option value="nature" id="optNat">Nature (random, from Pexels)</option></select></div>
+          <div class="row" id="inUp"><button class="sm" id="inBtn" data-t="inPick">Choose photo</button><span class="mut" id="inName"></span><input type="file" id="inFile" accept="image/*" hidden></div>
+        </div>
+        <label class="row" style="cursor:pointer"><input type="checkbox" id="outOn"> <span data-t="outOn">Extend the end with a timer</span></label>
+        <div id="outSet" hidden>
+          <div class="row"><label data-t="outTo">Until</label><input id="outT" value="9:50" style="width:90px"><span class="mut" data-t="outFmt">min:sec</span></div>
+          <div class="row"><label data-t="outMode">Timer</label><select id="outMode" style="width:auto"><option value="up">Counts up</option><option value="down">Counts down</option></select></div>
+          <div class="mut" data-t="outNote">After the last frame of the video, a timer runs over the dimmed last frame until the chosen length.</div>
+        </div>
+      </div>
       <div class="box"><h3 data-t="h_out">Result</h3>
         <div class="row"><button id="burn" data-t="burn">Burn subtitles into the video</button></div>
         <div class="bar" id="rbar" hidden><i></i></div><div class="err" id="rerr"></div>

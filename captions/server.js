@@ -14,7 +14,7 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/shared', express.static(path.join(ROOT, 'public')));          // ui.css and theme.js of the main site
 const upload = multer({ dest: path.join(WORK, '_tmp'), limits: { fileSize: 8 * 1024 ** 3 } });
-const wrap = f => (req, res) => Promise.resolve(f(req, res)).catch(e => res.status(500).json({ error: String(e.message || e).slice(0, 400) }));
+const wrap = f => (req, res) => Promise.resolve(f(req, res)).catch(e => { console.error(e); res.status(500).json({ error: String(e.message || e).slice(0, 400) }); });
 const dirOf = id => { if (!/^[a-z0-9]{6,20}$/.test(id)) throw new Error('bad id'); return path.join(WORK, id); };
 const rd = id => JSON.parse(fs.readFileSync(path.join(dirOf(id), 'job.json'), 'utf8'));
 const wr = (id, j) => fs.writeFileSync(path.join(dirOf(id), 'job.json'), JSON.stringify(j));
@@ -129,6 +129,7 @@ app.post('/api/:id/original', wrap(async (req, res) => { const j = rd(req.params
 app.get('/api/meta', (req, res) => res.json({
   langs: LANGS,
   styles: Object.entries(TEMPLATES).map(([id, t]) => ({ id, label: t.label, accent: t.accent, font: t.font, mode: t.mode, upper: !!t.upper })),
+  pexels: !!require('./extras').pexelsKey(),
   fonts: fonts.list().filter(f => f.source === 'bundled' || f.source).map(f => ({ label: f.label, cyr: !!f.cyrillic, greek: !!f.greek }))
 }));
 
@@ -166,15 +167,32 @@ app.post('/api/:id/preview', wrap(async (req, res) => {
 }));
 
 // ---------- burn ----------
+const X = require('./extras');
+const photoUp = multer({ dest: path.join(WORK, '_tmp'), limits: { fileSize: 40 * 1024 ** 2 } });
+app.post('/api/:id/photo', photoUp.single('file'), wrap(async (req, res) => {          // the user's own photo for the start of the video
+  const j = rd(req.params.id), dir = dirOf(j.id); if (!req.file) throw new Error('No file');
+  const ext = (path.extname(req.file.originalname) || '.jpg').toLowerCase().replace(/[^.a-z0-9]/g, '');
+  if (!/^.(jpe?g|png|webp|gif|bmp|heic)$/.test(ext)) { fs.rmSync(req.file.path, { force: true }); throw new Error('This is not a picture'); }
+  for (const f of fs.readdirSync(dir)) if (f.startsWith('photo_user')) fs.rmSync(path.join(dir, f), { force: true });
+  fs.renameSync(req.file.path, path.join(dir, 'photo_user' + ext)); res.json({ ok: true, name: req.file.originalname });
+}));
 app.post('/api/:id/render', wrap(async (req, res) => {
   const j = rd(req.params.id), dir = dirOf(j.id), o = req.body || {};
   fs.writeFileSync(path.join(dir, 'subs.ass'), assFor(j, o));
-  const out = path.join(dir, 'out.mp4');
+  const ex = { intro: { on: false }, outro: { on: false } };
+  if (o.intro && o.intro.on) {
+    let photo = null;
+    if (o.intro.source === 'nature') photo = (await X.naturePhoto(dir, j.W, j.H)).file;
+    else { const f = fs.readdirSync(dir).find(n => n.startsWith('photo_user')); if (!f) throw new Error('Choose a photo first'); photo = path.join(dir, f); }
+    ex.intro = { on: true, sec: o.intro.sec, photo };
+  }
+  if (o.outro && o.outro.on) { const t = X.parseTime(o.outro.target); if (!t) throw new Error('Write the length like 9:50'); ex.outro = { on: true, target: t, down: !!o.outro.down }; }
+  const pl = await X.plan(j, dir, ex, FONTS);      // throws a readable message when the target is shorter than the video
   TASKS.set(j.id, { kind: 'render', state: 'run', pct: 1 });
   res.json({ ok: true });
-  const p = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-progress', 'pipe:1', '-i', path.join(dir, j.src), '-vf', `ass=subs.ass:fontsdir=${FONTS}`, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', 'out.mp4'], { cwd: dir });
+  const p = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-progress', 'pipe:1', ...pl.args, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', 'out.mp4'], { cwd: dir });
   let err = '';
-  p.stdout.on('data', d => { const m = /out_time_us=(\d+)/.exec(String(d)); if (m && j.duration) TASKS.set(j.id, { kind: 'render', state: 'run', pct: Math.min(99, Math.round(+m[1] / 1e4 / j.duration)) }); });
+  p.stdout.on('data', d => { const m = /out_time_us=(d+)/.exec(String(d)); if (m && pl.total) TASKS.set(j.id, { kind: 'render', state: 'run', pct: Math.min(99, Math.round(+m[1] / 1e4 / pl.total)) }); });
   p.stderr.on('data', d => { err = (err + d).slice(-600); });
   p.on('close', c => TASKS.set(j.id, c === 0 ? { kind: 'render', state: 'done', pct: 100 } : { kind: 'render', state: 'error', error: err }));
 }));
