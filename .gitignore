@@ -9,7 +9,7 @@ projects/
 library/
 exports/
 backups/
-fonts/
+# fonts/ is committed (open-licence Google Fonts)
 assets/
 .venv/
 node_modules/

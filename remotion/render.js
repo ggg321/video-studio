@@ -34,7 +34,7 @@ function serve() {
   props.video = url(props.video); props.audio = url(props.audio); props.fontUrl = url(props.fontUrl);
   (props.scenes || []).forEach(s => { if (s.src) s.src = url(s.src); });
   // the bundled headless shell does not start on some Windows setups; the Chrome that is already installed does
-  const CH = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(x => x && fs.existsSync(x));
+  const CH = require('../lib/platform').chrome();
   const bo = CH ? { browserExecutable: CH, chromeMode: 'chrome-for-testing' } : {};
   if (!CH) await ensureBrowser();
   // Skia needs its own webpack settings; without the package nothing changes

@@ -15,7 +15,8 @@ for d, src in ((os.path.join(root, 'fonts'), 'bundled'),):
     for fn in sorted(os.listdir(d)):
         if fn.lower().endswith(('.ttf', '.otf')): scan(os.path.join(d, fn), src)
 for fn in ('arialbd.ttf', 'impact.ttf', 'segoeuib.ttf', 'Roboto-Bold_2.ttf', 'Roboto-Medium.ttf'):
-    p = os.path.join('C:/Windows/Fonts', fn)
-    if os.path.exists(p): scan(p, 'windows')
+    for dd in ['C:/Windows/Fonts', '/System/Library/Fonts/Supplemental', '/Library/Fonts']:
+        p = os.path.join(dd, fn)
+        if os.path.exists(p): scan(p, 'windows'); break
 json.dump(out, open(os.path.join(root, 'data', 'fonts_scan.json'), 'w'), indent=1)
 for o in out: print(o['file'].ljust(26), (o['family'] or '').ljust(18), (o['style'] or '').ljust(12), 'var' if o['variable'] else '   ', 'lat' if o['latin'] else '---', 'ext' if o['latinExt'] else '---', 'cyr' if o['cyrillic'] else '---', 'gr' if o['greek'] else '--')

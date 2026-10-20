@@ -10,8 +10,9 @@ for d in ('fonts', os.path.join('fonts', 'static')):
     for fn in sorted(os.listdir(p)):
         if fn.lower().endswith('.ttf') and not fn.endswith('-VF.ttf'): src.append((os.path.join(p, fn), 'bundled'))
 for fn in ('arialbd.ttf', 'arial.ttf', 'impact.ttf', 'segoeuib.ttf', 'segoeui.ttf', 'Roboto-Bold_2.ttf'):
-    p = os.path.join('C:/Windows/Fonts', fn)
-    if os.path.exists(p): src.append((p, 'windows'))
+    for dd in ['C:/Windows/Fonts', '/System/Library/Fonts/Supplemental', '/Library/Fonts']:
+        p = os.path.join(dd, fn)
+        if os.path.exists(p): src.append((p, 'windows')); break
 cat, seen = [], set()
 for path, source in src:
     f = TTFont(path, lazy=True); n = f['name']

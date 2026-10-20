@@ -392,12 +392,12 @@ app.post('/api/projects/:id/open-video', wrap((req, res) => {
   const p = load(req.params.id), f = String(req.body.file || p.outFile || ''), known = [p.outFile, ...Object.values(p.extraOuts || {}).map(o => o.file)].filter(Boolean);
   if (!known.includes(f)) return res.status(400).json({ error: 'Render the video first.' });
   const t = path.join(pdir(p.id), f); if (!fs.existsSync(t)) return res.status(400).json({ error: 'The video file is missing: render again.' });
-  require('child_process').spawn('cmd.exe', ['/c', 'start', '', t], { detached: true, stdio: 'ignore', windowsHide: true }).unref(); res.json({ ok: true });
+  require('./lib/platform').open(t); res.json({ ok: true });
 }));
 app.post('/api/open', wrap((req, res) => {
   const t = path.resolve(String(req.body.path || '')), ok = [workfolder.EXPORTS, PROJ].some(r => t.toLowerCase().startsWith(path.resolve(r).toLowerCase()));
   if (!ok || !fs.existsSync(t)) return res.status(400).json({ error: 'Folder not found.' });
-  require('child_process').spawn('explorer.exe', [t], { detached: true, stdio: 'ignore' }).unref(); res.json({ ok: true });
+  require('./lib/platform').openFolder(t); res.json({ ok: true });
 }));
 app.post('/api/tasks/:id/batch', wrap(async (req, res) => {
   const act = req.body.action === 'render' ? 'render' : 'analyze', force = !!req.body.force, out = { started: [], skipped: [] };
@@ -614,7 +614,7 @@ app.post('/api/projects/:id/analyze', wrap(async (req, res) => {
     // optional presenter-footage checks: lip-sync + jump cuts. Modes: off | notify | cover
     const lm = p.lipsyncMode || 'notify', cm = p.cutsMode || 'notify';
     let lip = null;
-    const py = path.join(ROOT, '.venv', 'Scripts', 'python.exe');
+    const py = require('./lib/platform').PY;
     if (p.presenterFile && (lm !== 'off' || cm !== 'off')) {
       set(p, { progress: 0.7 });
       const found = [], toCover = []; let meanScore = null;

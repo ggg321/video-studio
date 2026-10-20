@@ -13,6 +13,8 @@ const SCRIPTS = [
   ['thai', /[฀-๿]/], ['indic', /[ऀ-৿਀-෿]/], ['georgian', /[Ⴀ-ჿ]/], ['armenian', /[԰-֏]/]
 ];
 const scriptOf = text => { for (const [n, re] of SCRIPTS) if (re.test(text)) return n; return 'latin'; };
-const FONT = { cjk: 'Microsoft YaHei', hangul: 'Malgun Gothic', arabic: 'Segoe UI', hebrew: 'Segoe UI', thai: 'Leelawadee UI', indic: 'Nirmala UI', georgian: 'Sylfaen', armenian: 'Sylfaen' };
+const FONT = process.platform === 'darwin'
+  ? { cjk: 'PingFang SC', hangul: 'Apple SD Gothic Neo', arabic: 'Geeza Pro', hebrew: 'Arial Hebrew', thai: 'Thonburi', indic: 'Kohinoor Devanagari', georgian: 'Arial Unicode MS', armenian: 'Arial Unicode MS' }
+  : { cjk: 'Microsoft YaHei', hangul: 'Malgun Gothic', arabic: 'Segoe UI', hebrew: 'Segoe UI', thai: 'Leelawadee UI', indic: 'Nirmala UI', georgian: 'Sylfaen', armenian: 'Sylfaen' };
 const fontFor = script => FONT[script] || '';
 module.exports = { LANGS, scriptOf, fontFor };

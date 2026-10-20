@@ -10,11 +10,24 @@ Secrets and personal data stay out on purpose (see `.gitignore`):
 
 - `data/` — settings with API keys, tasks, niches and clip libraries, samples, sounds, speakers. It is created on the first start.
 - `projects/`, `library/`, `exports/`, `backups/` — your videos and clips.
-- `fonts/`, `assets/` — font files and Remotion assets.
+- `assets/` — Remotion assets.
 - `tools/realesrgan`, `tools/whisper` — program files and models.
 - `node_modules`, `.venv`.
 
 Never commit API keys. Keys (Asana, Telegram, Pexels, Pixabay, xAI, ElevenLabs, HeyGen) are typed into the Settings page and saved in `data/settings.json`.
+
+## Set-up on a Mac
+
+Needs Homebrew (https://brew.sh). Then, in Terminal:
+
+```bash
+git clone https://github.com/ggg321/video-studio.git
+cd video-studio
+bash setup-mac.sh        # installs node, ffmpeg, python, whisper-cpp, the packages, the fonts catalog and the speech model
+./start.sh               # opens http://localhost:4317
+```
+
+Optional: Ollama (`brew install ollama`, then `ollama pull gemma3:4b` and `ollama pull bge-m3`) for meaning-based matching and subtitle translation; Google Chrome for the Motion tab. Keys go into Settings. Subtitle Studio: `bash captions/start-captions.sh` (http://localhost:4318). Autostart at login on a Mac: add `start.sh` as a Login Item (System Settings → General → Login Items). The AI upscaler (Real-ESRGAN) is Windows-only here and is simply off on a Mac.
 
 ## Set-up on a new computer (Windows)
 
