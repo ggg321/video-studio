@@ -33,3 +33,4 @@ hyperframes/*/renders/
 *.tmp
 .DS_Store
 Thumbs.db
+captions/work/

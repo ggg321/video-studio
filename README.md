@@ -48,3 +48,8 @@ node tools/install_hf_catalog.js
 
 - Third-party skills for Claude Code are listed in `skills-lock.json` (they are installed into `.claude/skills`, which is not committed).
 - Licenses of the libraries used: Remotion (free for individuals and small teams, check the current terms), GSAP (standard no-charge license), HyperFrames (Apache-2.0), Remotion Bits (MIT).
+
+## Subtitle Studio (separate site)
+
+A small stand-alone site for styled subtitles on any video, in many languages: `captions\start-captions.bat` (or `node captions/server.js`), then http://localhost:4318.
+Upload a video, recognize the speech (or import an .srt), optionally translate it with the local model (Ollama), pick one of 34 styles, tune size / colour / position / font, preview the real frame, burn the subtitles in and download the video (plus .srt and .txt). Chinese, Japanese, Korean, Arabic, Hebrew, Thai and Hindi use a system font that has the letters (copy `msyh.ttc` / `msyhbd.ttc` from `C:\Windows\Fonts` into `data/fontcache` for Chinese and Japanese). It reuses the caption engine in `lib/`.
