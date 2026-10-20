@@ -1,8 +1,8 @@
 const $ = id => document.getElementById(id);
 const D = {
   en: {}, 
-  ru: { drop: 'Перетащи видео сюда или нажми', dropsub: 'Любое видео: вертикальное, горизонтальное или квадратное', h_text: 'Текст', spoken: 'Язык речи', recog: 'Распознать речь', or: 'или', imp: 'Загрузить .srt', trans: 'Перевести на', translate: 'Перевести', back: 'Вернуть оригинал', regroup: 'Сгруппировать заново', redo: 'Распознать заново', h_style: 'Стиль', h_set: 'Настройки', accent: 'Цвет акцента', own: 'Как в стиле', size: 'Размер', lines: 'Строк', pos: 'Вверх / вниз', posx: 'Влево / вправо', dragnote: 'Субтитры можно перетаскивать прямо в превью.', font: 'Шрифт', fontnote: 'Для других алфавитов (китайский, арабский, тайский…) берётся системный шрифт, в котором есть эти буквы.', h_out: 'Результат', burn: 'Вшить субтитры в видео', dlv: 'Скачать видео', auto: 'авто', recognizing: 'Распознаю речь…', translating: 'Перевожу…', rendering: 'Рендерю…', done: 'Готово' },
-  uk: { drop: 'Перетягни відео сюди або натисни', dropsub: 'Будь-яке відео: вертикальне, горизонтальне або квадратне', h_text: 'Текст', spoken: 'Мова мовлення', recog: 'Розпізнати мовлення', or: 'або', imp: 'Завантажити .srt', trans: 'Перекласти на', translate: 'Перекласти', back: 'Повернути оригінал', regroup: 'Згрупувати заново', redo: 'Розпізнати заново', h_style: 'Стиль', h_set: 'Налаштування', accent: 'Колір акценту', own: 'Як у стилі', size: 'Розмір', lines: 'Рядків', pos: 'Вгору / вниз', posx: 'Вліво / вправо', dragnote: 'Субтитри можна перетягувати прямо в превʼю.', font: 'Шрифт', fontnote: 'Для інших алфавітів (китайська, арабська, тайська…) беремо системний шрифт, де є ці літери.', h_out: 'Результат', burn: 'Вшити субтитри у відео', dlv: 'Завантажити відео', auto: 'авто', recognizing: 'Розпізнаю мовлення…', translating: 'Перекладаю…', rendering: 'Рендерю…', done: 'Готово' }
+  ru: { drop: 'Перетащи видео сюда или нажми', dropsub: 'Любое видео: вертикальное, горизонтальное или квадратное', h_text: 'Текст', spoken: 'Язык речи', recog: 'Распознать речь', or: 'или', imp: 'Загрузить .srt', trans: 'Перевести на', translate: 'Перевести', back: 'Вернуть оригинал', regroup: 'Сгруппировать заново', redo: 'Распознать заново', h_style: 'Стиль', h_set: 'Настройки', accent: 'Цвет акцента', own: 'Как в стиле', size: 'Размер', lines: 'Строк', newv: 'Новое видео', pos: 'Вверх / вниз', posx: 'Влево / вправо', dragnote: 'Субтитры можно перетаскивать прямо в превью.', font: 'Шрифт', fontnote: 'Для других алфавитов (китайский, арабский, тайский…) берётся системный шрифт, в котором есть эти буквы.', h_out: 'Результат', burn: 'Вшить субтитры в видео', dlv: 'Скачать видео', auto: 'авто', recognizing: 'Распознаю речь…', translating: 'Перевожу…', rendering: 'Рендерю…', done: 'Готово' },
+  uk: { drop: 'Перетягни відео сюди або натисни', dropsub: 'Будь-яке відео: вертикальне, горизонтальне або квадратне', h_text: 'Текст', spoken: 'Мова мовлення', recog: 'Розпізнати мовлення', or: 'або', imp: 'Завантажити .srt', trans: 'Перекласти на', translate: 'Перекласти', back: 'Повернути оригінал', regroup: 'Згрупувати заново', redo: 'Розпізнати заново', h_style: 'Стиль', h_set: 'Налаштування', accent: 'Колір акценту', own: 'Як у стилі', size: 'Розмір', lines: 'Рядків', newv: 'Нове відео', pos: 'Вгору / вниз', posx: 'Вліво / вправо', dragnote: 'Субтитри можна перетягувати прямо в превʼю.', font: 'Шрифт', fontnote: 'Для інших алфавітів (китайська, арабська, тайська…) беремо системний шрифт, де є ці літери.', h_out: 'Результат', burn: 'Вшити субтитри у відео', dlv: 'Завантажити відео', auto: 'авто', recognizing: 'Розпізнаю мовлення…', translating: 'Перекладаю…', rendering: 'Рендерю…', done: 'Готово' }
 };
 let L = 'en'; try { L = localStorage.getItem('capLang') || (navigator.language || 'en').slice(0, 2); } catch {} if (!D[L]) L = 'en';
 const EN = {};
@@ -45,7 +45,7 @@ function marks() { document.querySelectorAll('.st').forEach(d => d.classList.tog
 
 function open_(j) {
   job = j; try { localStorage.setItem('capJob', j.id); } catch {}
-  $('app').hidden = false; $('s1').hidden = true; marks(); show();
+  $('app').hidden = false; $('s1').hidden = true; $('newv').hidden = false; marks(); show();
   $('scrub').value = 0; preview();
 }
 function show() {
@@ -124,3 +124,5 @@ $('burn').onclick = async () => {
   } catch (e) { $('rerr').textContent = e.message; } busyBtn($('burn'), false);
 };
 boot();
+// start over with another video
+$('newv').onclick = () => { job = null; try { localStorage.removeItem('capJob'); } catch {} history.replaceState(null, '', '/'); $('app').hidden = true; $('s1').hidden = false; $('newv').hidden = true; $('file').value = ''; $('uperr').textContent = ''; $('pv').removeAttribute('src'); };
